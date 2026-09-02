@@ -22,7 +22,13 @@ async function api(path, options = {}) {
   const token = localStorage.getItem('cas_token');
   if (token) headers['Authorization'] = `Bearer ${token}`;
 
-  const resp = await fetch(path, { ...options, headers });
+  let resp;
+  try {
+    resp = await fetch(path, { ...options, headers });
+  } catch {
+    // fetch 网络层失败（服务器未启动/已停止）——给出明确提示而不是静默无反应
+    throw new Error('无法连接服务器，请确认系统已启动（双击"启动系统.bat"）');
+  }
   const data = await resp.json().catch(() => ({}));
 
   // 非 2xx 时抛出后端返回的错误信息，由调用方提示用户
@@ -98,23 +104,28 @@ const app = createApp({
 
     async submitAuth() {
       const f = this.authForm;
-      if (this.authModal.mode === 'register') {
-        // 先注册再自动登录
-        await api('/api/register', {
+      try {
+        if (this.authModal.mode === 'register') {
+          // 先注册再自动登录
+          await api('/api/register', {
+            method: 'POST',
+            body: JSON.stringify({ username: f.username, name: f.name, password: f.password, role: f.role }),
+          });
+        }
+        // 登录拿 token
+        const data = await api('/api/login', {
           method: 'POST',
-          body: JSON.stringify({ username: f.username, name: f.name, password: f.password, role: f.role }),
+          body: JSON.stringify({ username: f.username, password: f.password }),
         });
+        localStorage.setItem('cas_token', data.token);
+        this.user = data.user;
+        this.authModal.show = false;
+        alert('登录成功，欢迎 ' + data.user.name);
+        await this.loadActivities();
+      } catch (e) {
+        // 任何失败都明确提示（如服务器未启动、用户名密码错误）
+        alert(e.message || '操作失败，请稍后重试');
       }
-      // 登录拿 token
-      const data = await api('/api/login', {
-        method: 'POST',
-        body: JSON.stringify({ username: f.username, password: f.password }),
-      });
-      localStorage.setItem('cas_token', data.token);
-      this.user = data.user;
-      this.authModal.show = false;
-      alert('登录成功，欢迎 ' + data.user.name);
-      await this.loadActivities();
     },
 
     logout() {
