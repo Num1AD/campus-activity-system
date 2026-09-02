@@ -1,0 +1,4 @@
+# 校园活动管理系统 V1.0 后端依赖
+# 技术栈：FastAPI + SQLite（详见 docs/03-决策记录.md）
+fastapi
+uvicorn
