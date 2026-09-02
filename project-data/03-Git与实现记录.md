@@ -12,15 +12,20 @@
 | 3 | 2026-09-01 00:07 | 02e2a98 | data: 回填记录体系提交的真实 commit id（ac5d981） | 数据记录体系 | 修正 03 文件提交表 hash |
 | 4 | 2026-09-01 00:1x | 396e3c0 | report: 建立实验报告工作副本并填写封面基本信息 | 报告填写 | 复制模板至 report/，填写小组成员肖子恒、班级6、组名之乎者也、仓库地址 |
 | 5 | 2026-09-01 00:1x | b4aaf5e | docs: 完成阶段③软件设计 | 软件设计 | 新增 docs/04-软件设计.md（架构/模块/数据/决策） |
+| 6 | 2026-09-02 23:4x | 52f1b15 | feat: 实现后端全部API（数据库/认证/用户/活动/报名） | REQ-01~08 | 新增 backend/（database/auth/helpers + 三路由 + main），requirements.txt |
+| 7 | 2026-09-02 23:4x | d12f0db | feat: 实现Vue3前端页面与README | REQ-01~08 | 新增 frontend/（index.html/app.js/style.css）+ README.md |
 
 ## 6.1 实现结果概述（随阶段推进更新）
 
 当前进度：
 
 - 阶段①②完成：需求分析、工程意图已落盘 docs/；
-- 决策已确认：技术栈 FastAPI + SQLite + Vue3(CDN)，1 人组，本地运行，GitHub 托管；
-- 仓库已就绪：GitHub 远程 + 本地 main 分支同步；
-- 阶段③软件设计：待启动。
+- 阶段③完成：软件设计已落盘 docs/04-软件设计.md；
+- 阶段④编码实现完成：后端三模块 API + Vue3 前端全部实现并通过冒烟测试；
+- 系统本地可运行：uvicorn backend.main:app，浏览器 http://127.0.0.1:8000；
+- 演示数据：教师 teacher01 / 学生 student01、student02（密码 123456），3 个示例活动；
+- 仓库：GitHub 远程 + 本地 main 同步；
+- 阶段⑤软件验证：待启动。
 
 ## 6.3 重要调整记录（如有）
 
