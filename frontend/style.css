@@ -1,0 +1,134 @@
+/*
+ * style.css —— 校园活动管理系统 V1.0 前端样式
+ * 简洁卡片风格，状态用颜色区分（绿=报名中、灰=已截止、红=已取消）
+ */
+
+/* ---------- 基础 ---------- */
+* { margin: 0; padding: 0; box-sizing: border-box; }
+body {
+  font-family: "Microsoft YaHei", "PingFang SC", "Segoe UI", sans-serif;
+  background: #f4f6f8;
+  color: #1f2937;
+  min-height: 100vh;
+}
+[v-cloak] { display: none; }
+.muted { color: #6b7280; font-size: 13px; }
+.center { text-align: center; }
+
+/* ---------- 顶栏 ---------- */
+.topbar {
+  background: #1d4ed8;
+  color: #fff;
+  box-shadow: 0 2px 8px rgba(0,0,0,.15);
+  position: sticky; top: 0; z-index: 100;
+}
+.topbar-inner {
+  max-width: 1080px; margin: 0 auto; padding: 0 20px;
+  height: 60px; display: flex; align-items: center; gap: 24px;
+}
+.brand { display: flex; align-items: center; gap: 10px; cursor: pointer; }
+.brand-logo {
+  width: 34px; height: 34px; border-radius: 8px;
+  background: #fff; color: #1d4ed8;
+  display: flex; align-items: center; justify-content: center;
+  font-weight: bold; font-size: 18px;
+}
+.brand-name { font-size: 18px; font-weight: 600; }
+.nav { display: flex; gap: 4px; flex: 1; }
+.nav-btn {
+  background: transparent; border: none; color: rgba(255,255,255,.85);
+  padding: 8px 14px; border-radius: 6px; cursor: pointer; font-size: 14px;
+}
+.nav-btn:hover { background: rgba(255,255,255,.12); }
+.nav-btn.active { background: rgba(255,255,255,.2); font-weight: 600; }
+.user-area { display: flex; align-items: center; gap: 10px; }
+.user-chip { display: flex; align-items: center; gap: 8px; font-size: 14px; }
+.role-badge {
+  font-style: normal; font-size: 12px; padding: 2px 8px; border-radius: 10px;
+}
+.role-student { background: #dbeafe; color: #1d4ed8; }
+.role-teacher { background: #fef3c7; color: #92400e; }
+
+/* ---------- 按钮 ---------- */
+.btn {
+  padding: 8px 16px; border: none; border-radius: 6px;
+  font-size: 14px; cursor: pointer; transition: opacity .15s;
+}
+.btn:disabled { opacity: .5; cursor: not-allowed; }
+.btn-primary { background: #1d4ed8; color: #fff; }
+.btn-primary:hover:not(:disabled) { background: #1e40af; }
+.btn-danger { background: #ef4444; color: #fff; }
+.btn-danger:hover:not(:disabled) { background: #dc2626; }
+.btn-ghost { background: transparent; color: inherit; border: 1px solid #d1d5db; }
+.btn-ghost:hover { background: rgba(255,255,255,.1); }
+.btn-block { width: 100%; margin-top: 6px; }
+
+/* ---------- 布局 ---------- */
+.container { max-width: 1080px; margin: 0 auto; padding: 28px 20px 60px; }
+.page-head { display: flex; align-items: center; justify-content: space-between; margin-bottom: 20px; }
+.page-head h2 { font-size: 22px; }
+.empty-tip { text-align: center; color: #9ca3af; padding: 60px 0; font-size: 15px; }
+
+/* ---------- 活动卡片 ---------- */
+.card-grid {
+  display: grid; grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+  gap: 18px;
+}
+.act-card {
+  background: #fff; border-radius: 12px; padding: 18px;
+  box-shadow: 0 1px 4px rgba(0,0,0,.06);
+  border-top: 4px solid #d1d5db;
+  display: flex; flex-direction: column; gap: 10px;
+  transition: transform .12s;
+}
+.act-card:hover { transform: translateY(-2px); }
+.act-card.status-报名中 { border-top-color: #22c55e; }
+.act-card.status-已截止 { border-top-color: #9ca3af; }
+.act-card.status-已取消 { border-top-color: #ef4444; opacity: .7; }
+.act-head { display: flex; justify-content: space-between; align-items: center; }
+.status-tag {
+  font-size: 12px; padding: 2px 10px; border-radius: 10px;
+}
+.st-报名中 { background: #dcfce7; color: #15803d; }
+.st-已截止 { background: #e5e7eb; color: #4b5563; }
+.st-已取消 { background: #fee2e2; color: #b91c1c; }
+.act-title { font-size: 17px; }
+.act-desc { color: #4b5563; font-size: 13px; line-height: 1.6; min-height: 42px; }
+.act-meta { display: flex; justify-content: space-between; color: #6b7280; font-size: 13px; }
+.act-foot { display: flex; gap: 8px; justify-content: flex-end; margin-top: 4px; }
+
+/* ---------- 弹层 ---------- */
+.modal-mask {
+  position: fixed; inset: 0; background: rgba(0,0,0,.45);
+  display: flex; align-items: center; justify-content: center; z-index: 200;
+}
+.modal {
+  background: #fff; border-radius: 12px; padding: 28px;
+  width: 420px; max-width: 92vw; position: relative;
+  max-height: 88vh; overflow-y: auto;
+}
+.modal h3 { margin-bottom: 18px; }
+.modal form { display: flex; flex-direction: column; gap: 14px; }
+.modal label { display: flex; flex-direction: column; gap: 6px; font-size: 13px; color: #374151; }
+.modal input, .modal select, .modal textarea {
+  padding: 9px 12px; border: 1px solid #d1d5db; border-radius: 6px; font-size: 14px;
+  font-family: inherit;
+}
+.modal input:focus, .modal textarea:focus, .modal select:focus {
+  outline: none; border-color: #1d4ed8; box-shadow: 0 0 0 2px rgba(29,78,216,.15);
+}
+.form-row { display: flex; gap: 10px; }
+.form-row label { flex: 1; }
+.modal-close {
+  position: absolute; top: 12px; right: 14px; border: none; background: none;
+  font-size: 22px; color: #9ca3af; cursor: pointer;
+}
+.modal-close:hover { color: #374151; }
+
+/* ---------- 表格（报名名单） ---------- */
+.plain-table { width: 100%; border-collapse: collapse; font-size: 14px; }
+.plain-table th, .plain-table td { padding: 8px 10px; border-bottom: 1px solid #e5e7eb; text-align: left; }
+.plain-table th { background: #f9fafb; color: #374151; }
+
+/* ---------- 页脚 ---------- */
+.footer { text-align: center; color: #9ca3af; font-size: 12px; padding: 20px; }

@@ -1,0 +1,191 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>校园活动管理系统 V1.0</title>
+  <!-- 样式表 -->
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <!-- Vue 应用挂载点 -->
+  <div id="app" v-cloak>
+    <!-- ===== 顶部导航栏 ===== -->
+    <header class="topbar">
+      <div class="topbar-inner">
+        <div class="brand" @click="switchView('list')">
+          <span class="brand-logo">校</span>
+          <span class="brand-name">校园活动管理系统</span>
+        </div>
+        <nav class="nav">
+          <button class="nav-btn" :class="{active: view==='list'}" @click="switchView('list')">活动广场</button>
+          <button v-if="user" class="nav-btn" :class="{active: view==='mine'}" @click="switchView('mine')">
+            {{ user.role === 'teacher' ? '我的活动(管理)' : '我的活动' }}
+          </button>
+        </nav>
+        <div class="user-area">
+          <!-- 已登录：显示姓名与角色 + 退出 -->
+          <template v-if="user">
+            <span class="user-chip">
+              {{ user.name }}
+              <em class="role-badge" :class="'role-' + user.role">{{ user.role === 'teacher' ? '教师' : '学生' }}</em>
+            </span>
+            <button class="btn btn-ghost" @click="logout">退出</button>
+          </template>
+          <!-- 未登录：登录 / 注册 -->
+          <template v-else>
+            <button class="btn btn-ghost" @click="openAuth('login')">登录</button>
+            <button class="btn btn-primary" @click="openAuth('register')">注册</button>
+          </template>
+        </div>
+      </div>
+    </header>
+
+    <main class="container">
+      <!-- ===== 视图一：活动广场（活动列表） ===== -->
+      <section v-if="view==='list'" class="page">
+        <div class="page-head">
+          <h2>活动广场</h2>
+          <p class="muted">浏览校园活动，登录后即可报名参加</p>
+        </div>
+        <!-- 空态提示 -->
+        <div v-if="!activities.length" class="empty-tip">暂无活动，教师发布后这里会展示</div>
+        <!-- 活动卡片网格 -->
+        <div class="card-grid">
+          <div v-for="act in activities" :key="act.id" class="act-card" :class="'status-'+act.status">
+            <div class="act-head">
+              <span class="status-tag" :class="'st-'+act.status">{{ act.status }}</span>
+              <span class="muted">{{ act.location }}</span>
+            </div>
+            <h3 class="act-title">{{ act.title }}</h3>
+            <p class="act-desc">{{ act.description || '暂无活动描述' }}</p>
+            <div class="act-meta">
+              <span>🕐 {{ act.start_time }}</span>
+              <span>人数 {{ act.registered }}/{{ act.capacity }}</span>
+            </div>
+            <div class="act-foot">
+              <button
+                class="btn"
+                :class="regState(act) === 'registered' ? 'btn-danger' : 'btn-primary'"
+                :disabled="act.status !== '报名中'"
+                @click="handleRegister(act)">
+                {{ regState(act) === 'registered' ? '取消报名' : (act.status === '报名中' ? '报名' : '不可报名') }}
+              </button>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- ===== 视图二：我的活动 ===== -->
+      <section v-if="view==='mine'" class="page">
+        <div class="page-head">
+          <h2>{{ user.role === 'teacher' ? '我发布的活动' : '我的活动' }}</h2>
+          <!-- 教师可发布新活动 -->
+          <button v-if="user.role==='teacher'" class="btn btn-primary" @click="openPublish">＋ 发布新活动</button>
+        </div>
+        <div v-if="!mineActivities.length" class="empty-tip">
+          {{ user.role === 'teacher' ? '你还没发布过活动' : '你还没报名任何活动，去活动广场看看吧' }}
+        </div>
+        <div class="card-grid">
+          <div v-for="act in mineActivities" :key="act.id" class="act-card" :class="'status-'+act.status">
+            <div class="act-head">
+              <span class="status-tag" :class="'st-'+act.status">{{ act.status }}</span>
+              <span class="muted">{{ act.location }}</span>
+            </div>
+            <h3 class="act-title">{{ act.title }}</h3>
+            <p class="act-desc">{{ act.description || '暂无活动描述' }}</p>
+            <div class="act-meta">
+              <span>🕐 {{ act.start_time }}</span>
+              <span>人数 {{ act.registered }}/{{ act.capacity }}</span>
+            </div>
+            <div class="act-foot">
+              <!-- 学生：取消报名 -->
+              <template v-if="user.role==='student'">
+                <button class="btn btn-danger" @click="unregister(act)">取消报名</button>
+              </template>
+              <!-- 教师：查看名单 / 取消活动 -->
+              <template v-else>
+                <button class="btn btn-ghost" @click="viewStudents(act)">报名名单({{ act.registered }})</button>
+                <button v-if="act.status!=='已取消'" class="btn btn-danger" @click="cancelActivity(act)">取消活动</button>
+              </template>
+            </div>
+          </div>
+        </div>
+      </section>
+    </main>
+
+    <!-- ===== 登录 / 注册弹层 ===== -->
+    <div v-if="authModal.show" class="modal-mask" @click.self="authModal.show=false">
+      <div class="modal">
+        <h3>{{ authModal.mode === 'login' ? '登录' : '注册' }}</h3>
+        <form @submit.prevent="submitAuth">
+          <template v-if="authModal.mode==='register'">
+            <label>姓名<input v-model="authForm.name" required placeholder="你的姓名"></label>
+            <label>学号/工号<input v-model="authForm.username" required placeholder="登录账号"></label>
+            <label>角色
+              <select v-model="authForm.role">
+                <option value="student">学生</option>
+                <option value="teacher">教师</option>
+              </select>
+            </label>
+          </template>
+          <template v-else>
+            <label>学号/工号<input v-model="authForm.username" required placeholder="登录账号"></label>
+          </template>
+          <label>密码<input type="password" v-model="authForm.password" required minlength="6" placeholder="密码(至少6位)"></label>
+          <button class="btn btn-primary btn-block" type="submit">
+            {{ authModal.mode === 'login' ? '登录' : '注册并登录' }}
+          </button>
+          <p class="muted center">
+            <a href="#" @click.prevent="authModal.mode = authModal.mode==='login' ? 'register' : 'login'">
+              {{ authModal.mode === 'login' ? '没有账号？去注册' : '已有账号？去登录' }}
+            </a>
+          </p>
+        </form>
+        <button class="modal-close" @click="authModal.show=false">×</button>
+      </div>
+    </div>
+
+    <!-- ===== 教师发布活动弹层 ===== -->
+    <div v-if="publishModal" class="modal-mask" @click.self="publishModal=false">
+      <div class="modal">
+        <h3>发布新活动</h3>
+        <form @submit.prevent="submitPublish">
+          <label>活动名称<input v-model="publishForm.title" required maxlength="64" placeholder="如：校园篮球联赛"></label>
+          <label>活动地点<input v-model="publishForm.location" required maxlength="128" placeholder="如：东区篮球场"></label>
+          <label>活动描述<textarea v-model="publishForm.description" rows="3" placeholder="活动内容说明（可选）"></textarea></label>
+          <div class="form-row">
+            <label>开始时间<input type="datetime-local" v-model="publishForm.start_time" required></label>
+            <label>结束时间<input type="datetime-local" v-model="publishForm.end_time" required></label>
+          </div>
+          <label>人数上限<input type="number" v-model.number="publishForm.capacity" required min="1" max="10000"></label>
+          <button class="btn btn-primary btn-block" type="submit">发布</button>
+        </form>
+        <button class="modal-close" @click="publishModal=false">×</button>
+      </div>
+    </div>
+
+    <!-- ===== 报名名单弹层（教师） ===== -->
+    <div v-if="studentListModal" class="modal-mask" @click.self="studentListModal=false">
+      <div class="modal">
+        <h3>{{ currentAct.title }} · 报名名单</h3>
+        <table v-if="studentList.length" class="plain-table">
+          <thead><tr><th>学号/工号</th><th>姓名</th></tr></thead>
+          <tbody>
+            <tr v-for="s in studentList" :key="s.id"><td>{{ s.username }}</td><td>{{ s.name }}</td></tr>
+          </tbody>
+        </table>
+        <p v-else class="muted">还没有人报名</p>
+        <button class="modal-close" @click="studentListModal=false">×</button>
+      </div>
+    </div>
+
+    <footer class="footer">校园活动管理系统 V1.0 · 软件工程实验一</footer>
+  </div>
+
+  <!-- Vue 3 CDN（无需构建工具） -->
+  <script src="https://unpkg.com/vue@3/dist/vue.global.prod.js"></script>
+  <!-- 应用逻辑 -->
+  <script src="app.js"></script>
+</body>
+</html>
