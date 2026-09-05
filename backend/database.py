@@ -92,9 +92,9 @@ def _seed(conn: sqlite3.Connection) -> None:
     # 导入 auth 放在函数内，避免模块循环依赖
     from backend.auth import hash_password
 
-    # 演示账号（密码统一 123456；管理员 admin01 / 1234567）
+    # 演示账号（密码统一 123456；管理员 admin / 1234567，仅此一个管理员）
     demo_users = [
-        ("admin01", "系统管理员", "admin"),
+        ("admin", "系统管理员", "admin"),
         ("teacher01", "王老师", "teacher"),
         ("student01", "小明",   "student"),
         ("student02", "小红",   "student"),
