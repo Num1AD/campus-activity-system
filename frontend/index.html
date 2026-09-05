@@ -1,75 +1,75 @@
 <!DOCTYPE html>
-<html lang="zh-CN">
-<head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+<html lang="zh-CN" data-page-node-id="8GHHdEzP1xG8zvqSTrofNx">
+<head data-page-node-id="og0GibKFFuYetAmAPWMHiH">
+  <meta charset="UTF-8" data-page-node-id="989iBLXxR7zP4irFxbUH17">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" data-page-node-id="HCMM6rxWCEEHSPFYYWfTKo">
   <title>校园活动管理系统 V1.0</title>
   <!-- 样式表 -->
-  <link rel="stylesheet" href="style.css">
+  <link rel="stylesheet" href="style.css" data-page-node-id="5Wk2JmUiuD9JAPcAVSCpPv">
 </head>
-<body>
+<body data-page-node-id="Fcyd1Fcb2MC3YlyOO7YgkE">
   <!-- Vue 应用挂载点 -->
-  <div id="app" v-cloak>
+  <div id="app" v-cloak data-page-node-id="NN1W5wYCg0MsSEceH2c8AS">
     <!-- ===== 顶部导航栏 ===== -->
-    <header class="topbar">
-      <div class="topbar-inner">
-        <div class="brand" @click="switchView('list')">
-          <span class="brand-logo">校</span>
-          <span class="brand-name">校园活动管理系统</span>
+    <header class="topbar" data-page-node-id="EXBacCiX0XG20tiPtjtvqq">
+      <div class="topbar-inner" data-page-node-id="Qk4rr3Qfi8dXpH6rQND2tA">
+        <div class="brand" @click="switchView('list')" data-page-node-id="Hm0SrCBTzuC1XY5QbRZHqk">
+          <span class="brand-logo" data-page-node-id="qTZ85UQq5DudFUy1XPOaFQ">校</span>
+          <span class="brand-name" data-page-node-id="2HEWFMrcI8NSiEA34gNS0h">校园活动管理系统</span>
         </div>
-        <nav class="nav">
-          <button class="nav-btn" :class="{active: view==='list'}" @click="switchView('list')">活动广场</button>
-          <button v-if="user && user.role==='admin'" class="nav-btn" :class="{active: view==='users'}" @click="switchView('users')">用户管理</button>
-          <button v-if="user && user.role!=='admin'" class="nav-btn" :class="{active: view==='mine'}" @click="switchView('mine')">
+        <nav class="nav" data-page-node-id="APpoYMFBP018neauZuErRO">
+          <button class="nav-btn" :class="{active: view==='list'}" @click="switchView('list')" data-page-node-id="f3j58LRA49JRNZmTQsJ3yF">活动广场</button>
+          <button v-if="user && user.role==='admin'" class="nav-btn" :class="{active: view==='users'}" @click="switchView('users')" data-page-node-id="8b9U4SpEgo4UsUTnqEsVzY">用户管理</button>
+          <button v-if="user && user.role!=='admin'" class="nav-btn" :class="{active: view==='mine'}" @click="switchView('mine')" data-page-node-id="qfkFQLsArkhFkhC6XLP0Tz">
             {{ user.role === 'teacher' ? '我的活动(管理)' : '我的活动' }}
           </button>
         </nav>
-        <div class="user-area">
+        <div class="user-area" data-page-node-id="oXrTDSb0jPMhLvtFMQIweC">
           <!-- 已登录：显示姓名与角色 + 退出 -->
-          <template v-if="user">
-            <span class="user-chip">
+          <template v-if="user" data-page-node-id="2qaVDZb1EhlNEhCog877Tn">
+            <span class="user-chip" data-page-node-id="1cLig7fwktbE9ZmBI43jD8">
               {{ user.name }}
-              <em class="role-badge" :class="'role-' + user.role">{{ roleText(user.role) }}</em>
+              <em class="role-badge" :class="'role-' + user.role" data-page-node-id="UedKmcHMQhRfTEfO8IVTC5">{{ roleText(user.role) }}</em>
             </span>
-            <button class="btn btn-ghost" @click="logout">退出</button>
+            <button class="btn btn-ghost" @click="logout" data-page-node-id="QGJzQCZZ1B7oEa03nPlDHy">退出</button>
           </template>
           <!-- 未登录：登录 / 注册 -->
-          <template v-else>
-            <button class="btn btn-ghost" @click="openAuth('login')">登录</button>
-            <button class="btn btn-primary" @click="openAuth('register')">注册</button>
+          <template v-else data-page-node-id="QbtGa7suqrsz0OIgQZgMH3">
+            <button class="btn btn-ghost" @click="openAuth('login')" data-page-node-id="bBdrlchdi4HwUAKppwVmg4">登录</button>
+            <button class="btn btn-primary" @click="openAuth('register')" data-page-node-id="MBXR2QJy2JNgKe5sn4tGGt">注册</button>
           </template>
         </div>
       </div>
     </header>
 
-    <main class="container">
+    <main class="container" data-page-node-id="FByLml9oYPgaCVnFSAMZ5h">
       <!-- ===== 视图一：活动广场（活动列表） ===== -->
-      <section v-if="view==='list'" class="page">
-        <div class="page-head">
-          <h2>活动广场</h2>
-          <p class="muted">浏览校园活动，登录后即可报名参加</p>
+      <section v-if="view==='list'" class="page" data-page-node-id="W5jt2zNGcWgZ8BUX78rpMA">
+        <div class="page-head" data-page-node-id="epW4255SY1sdeNgZY5LNyN">
+          <h2 data-page-node-id="H7L9czGkDVGK0N7GH7si5y">活动广场</h2>
+          <p class="muted" data-page-node-id="CqSdZxl1lWTG0Zi0zpIvz2">浏览校园活动，登录后即可报名参加</p>
         </div>
         <!-- 空态提示 -->
-        <div v-if="!activities.length" class="empty-tip">暂无活动，教师发布后这里会展示</div>
+        <div v-if="!activities.length" class="empty-tip" data-page-node-id="ZOB2PBz6Ihp7ZnS7VX7LdY">暂无活动，教师发布后这里会展示</div>
         <!-- 活动卡片网格 -->
-        <div class="card-grid">
-          <div v-for="act in activities" :key="act.id" class="act-card" :class="'status-'+act.status">
-            <div class="act-head">
-              <span class="status-tag" :class="'st-'+act.status">{{ act.status }}</span>
-              <span class="muted">{{ act.location }}</span>
+        <div class="card-grid" data-page-node-id="mjtQQZmKUbwA55REUsz7FW">
+          <div v-for="act in activities" :key="act.id" class="act-card" :class="'status-'+act.status" data-page-node-id="5pbGzalf7Z12UcDaWTCNXC">
+            <div class="act-head" data-page-node-id="sFBGkw5J4Y4FGRKXQszUoz">
+              <span class="status-tag" :class="'st-'+act.status" data-page-node-id="8yjEMlpwBPHjf5rYCYgWMP">{{ act.status }}</span>
+              <span class="muted" data-page-node-id="5eOGUalZ3wwM8xuUj0f3eT">{{ act.location }}</span>
             </div>
-            <h3 class="act-title">{{ act.title }}</h3>
-            <p class="act-desc">{{ act.description || '暂无活动描述' }}</p>
-            <div class="act-meta">
-              <span>🕐 {{ act.start_time }}</span>
-              <span>人数 {{ act.registered }}/{{ act.capacity }}</span>
+            <h3 class="act-title" data-page-node-id="AMY07ixqyTFCH77JpJN3se">{{ act.title }}</h3>
+            <p class="act-desc" data-page-node-id="h0eZ57raFdlP5Mr3CHCKlj">{{ act.description || '暂无活动描述' }}</p>
+            <div class="act-meta" data-page-node-id="QuMYmWBM5sC70WG6pHOYbB">
+              <span data-page-node-id="tYY8b6vyQ3rrBOLDVap3aH">🕐 {{ act.start_time }}</span>
+              <span data-page-node-id="RFWBM41Cw9qpKfgZpxp95l">人数 {{ act.registered }}/{{ act.capacity }}</span>
             </div>
-            <div class="act-foot">
+            <div class="act-foot" data-page-node-id="Q9mkE1HhYExwocnZBmPLWx">
               <button
                 class="btn"
                 :class="regState(act) === 'registered' ? 'btn-danger' : 'btn-primary'"
                 :disabled="act.status !== '报名中'"
-                @click="handleRegister(act)">
+                @click="handleRegister(act)" data-page-node-id="Rl5zRkwRBkZq8NUIbPnIPu">
                 {{ regState(act) === 'registered' ? '取消报名' : (act.status === '报名中' ? '报名' : '不可报名') }}
               </button>
             </div>
@@ -78,36 +78,36 @@
       </section>
 
       <!-- ===== 视图二：我的活动 ===== -->
-      <section v-if="view==='mine'" class="page">
-        <div class="page-head">
-          <h2>{{ user.role === 'teacher' ? '我发布的活动' : '我的活动' }}</h2>
+      <section v-if="view==='mine'" class="page" data-page-node-id="4fjhWpA5BRq6NgqQ1wRO4y">
+        <div class="page-head" data-page-node-id="qYgnhlPy5rZxbjtRSaaiL4">
+          <h2 data-page-node-id="v1cI446rsa1D4aHxvHY4pL">{{ user.role === 'teacher' ? '我发布的活动' : '我的活动' }}</h2>
           <!-- 教师可发布新活动 -->
-          <button v-if="user.role==='teacher'" class="btn btn-primary" @click="openPublish">＋ 发布新活动</button>
+          <button v-if="user.role==='teacher'" class="btn btn-primary" @click="openPublish" data-page-node-id="kntOJmVHZn5hne4YwYtQAw">＋ 发布新活动</button>
         </div>
-        <div v-if="!mineActivities.length" class="empty-tip">
+        <div v-if="!mineActivities.length" class="empty-tip" data-page-node-id="yPz57M4LeOXSdH6v5CoAnS">
           {{ user.role === 'teacher' ? '你还没发布过活动' : '你还没报名任何活动，去活动广场看看吧' }}
         </div>
-        <div class="card-grid">
-          <div v-for="act in mineActivities" :key="act.id" class="act-card" :class="'status-'+act.status">
-            <div class="act-head">
-              <span class="status-tag" :class="'st-'+act.status">{{ act.status }}</span>
-              <span class="muted">{{ act.location }}</span>
+        <div class="card-grid" data-page-node-id="VYU1dW89pw9Y3BEb9xjmL1">
+          <div v-for="act in mineActivities" :key="act.id" class="act-card" :class="'status-'+act.status" data-page-node-id="EqycHzugFeL0NLDjGXDyAp">
+            <div class="act-head" data-page-node-id="dSgjO2S6zZv0SzH6xzuoIP">
+              <span class="status-tag" :class="'st-'+act.status" data-page-node-id="cF7do5mC9oBMXZKEqQ1XVt">{{ act.status }}</span>
+              <span class="muted" data-page-node-id="y1BBTFwsJoRj9W72QtWqco">{{ act.location }}</span>
             </div>
-            <h3 class="act-title">{{ act.title }}</h3>
-            <p class="act-desc">{{ act.description || '暂无活动描述' }}</p>
-            <div class="act-meta">
-              <span>🕐 {{ act.start_time }}</span>
-              <span>人数 {{ act.registered }}/{{ act.capacity }}</span>
+            <h3 class="act-title" data-page-node-id="AOEeMeUl1yGqDfwS8TuH9p">{{ act.title }}</h3>
+            <p class="act-desc" data-page-node-id="bAje6NqAeDgUDRvNoCKwex">{{ act.description || '暂无活动描述' }}</p>
+            <div class="act-meta" data-page-node-id="ws87ETgB0EVuGuF9fptI1O">
+              <span data-page-node-id="cz0CZvjHXdqSXbpkmpBABK">🕐 {{ act.start_time }}</span>
+              <span data-page-node-id="Mi01Y7vX5mn6SOAWy4Vlpz">人数 {{ act.registered }}/{{ act.capacity }}</span>
             </div>
-            <div class="act-foot">
+            <div class="act-foot" data-page-node-id="c13AWMwCXPhB0bcUbvM91q">
               <!-- 学生：取消报名 -->
-              <template v-if="user.role==='student'">
-                <button class="btn btn-danger" @click="unregister(act)">取消报名</button>
+              <template v-if="user.role==='student'" data-page-node-id="hfgcR71UClW70VKrjo0gV9">
+                <button class="btn btn-danger" @click="unregister(act)" data-page-node-id="VApO7XhlAp0dZb1kcMHCmY">取消报名</button>
               </template>
               <!-- 教师：查看名单 / 取消活动 -->
-              <template v-else>
-                <button class="btn btn-ghost" @click="viewStudents(act)">报名名单({{ act.registered }})</button>
-                <button v-if="act.status!=='已取消'" class="btn btn-danger" @click="cancelActivity(act)">取消活动</button>
+              <template v-else data-page-node-id="NzhPLizTsq1P8RA8tuT2HD">
+                <button class="btn btn-ghost" @click="viewStudents(act)" data-page-node-id="FSnFV2zwbmsTGURiUdvvwM">报名名单({{ act.registered }})</button>
+                <button v-if="act.status!=='已取消'" class="btn btn-danger" @click="cancelActivity(act)" data-page-node-id="7TcXhik5mRYDaxT5NKqMl7">取消活动</button>
               </template>
             </div>
           </div>
@@ -115,42 +115,42 @@
       </section>
 
       <!-- ===== 视图三：用户管理（仅管理员，REQ-09） ===== -->
-      <section v-if="view==='users'" class="page">
-        <div class="page-head">
-          <h2>用户管理</h2>
-          <p class="muted">管理系统内全部注册账号（禁用后该账号无法登录）</p>
+      <section v-if="view==='users'" class="page" data-page-node-id="yFwog79dopqVTvRtIPbTzj">
+        <div class="page-head" data-page-node-id="3enDCOeY5o9uyLQ2Y2hEeJ">
+          <h2 data-page-node-id="n45KxQl6YqdKH3p3fDJ0nw">用户管理</h2>
+          <p class="muted" data-page-node-id="cMtaGUUSt1ig0fKEnopkzI">管理系统内全部注册账号（禁用后该账号无法登录）</p>
         </div>
-        <div class="table-wrap">
-          <table class="plain-table admin-table">
-            <thead>
-              <tr>
-                <th>ID</th><th>学号/工号</th><th>姓名</th><th>角色</th><th>状态</th><th>注册时间</th><th>操作</th>
+        <div class="table-wrap" data-page-node-id="MsEkgxk15As39SkLqNFeRF">
+          <table class="plain-table admin-table" data-page-node-id="iHWMto9gu6U5BJfR0Z3XWA">
+            <thead data-page-node-id="WJ9e8ssTf5NigYi2Bx1Avr">
+              <tr data-page-node-id="DBxp3oZEr8Rvc5cyMK4k2i">
+                <th data-page-node-id="dFlOZRBhodwKqGvu0LdzWG">ID</th><th data-page-node-id="Ta132r89DdR8zKFhdSWPXx">学号/工号</th><th data-page-node-id="rkinYU0shXHXARSWRnPOQm">姓名</th><th data-page-node-id="XRceK2pjIarAGteiSakOaY">角色</th><th data-page-node-id="cjj8VH4B8kUNvCu2oZnhRP">状态</th><th data-page-node-id="DweOswZDvGB3wNtgaFI0C5">注册时间</th><th data-page-node-id="7W17qGHQxbIecv229WHCcv">操作</th>
               </tr>
             </thead>
-            <tbody>
-              <tr v-for="u in adminUsers" :key="u.id">
-                <td>{{ u.id }}</td>
-                <td>{{ u.username }}</td>
-                <td>{{ u.name }}</td>
-                <td><em class="role-badge" :class="'role-'+u.role">{{ roleText(u.role) }}</em></td>
-                <td>
-                  <span class="status-tag" :class="u.is_active ? 'st-报名中' : 'st-已取消'">
+            <tbody data-page-node-id="bwFYoTKGH84VLwbgTJ0XUE">
+              <tr v-for="u in adminUsers" :key="u.id" data-page-node-id="DHDrVsKyKSQdKFCfSFBK4m">
+                <td data-page-node-id="ay8JidedZWKF28MxOZw2OW">{{ u.id }}</td>
+                <td data-page-node-id="P79N4QaKquaPUQ9SF1PG0u">{{ u.username }}</td>
+                <td data-page-node-id="DM2xajnXErcm4n7zG6NbH7">{{ u.name }}</td>
+                <td data-page-node-id="AjUkk7ro0hUeHxL7iF3jTz"><em class="role-badge" :class="'role-'+u.role" data-page-node-id="AU1UJPmBM2trGcLEdvph9N">{{ roleText(u.role) }}</em></td>
+                <td data-page-node-id="ND8kzPa7m7J8dPpT1DCtWY">
+                  <span class="status-tag" :class="u.is_active ? 'st-报名中' : 'st-已取消'" data-page-node-id="t3Ds39aAtCBpyGD74JCuOX">
                     {{ u.is_active ? '正常' : '已禁用' }}
                   </span>
                 </td>
-                <td>{{ u.created_at }}</td>
-                <td class="op-cell">
-                  <template v-if="u.id === user.id">
-                    <span class="muted">（当前账号）</span>
+                <td data-page-node-id="dVJA4mEIsSWYaq69oBckFc">{{ u.created_at }}</td>
+                <td class="op-cell" data-page-node-id="99LyEkes9cgY3x3GGGgrJs">
+                  <template v-if="u.id === user.id" data-page-node-id="E6LfQUZihp3acPhM2LMcWM">
+                    <span class="muted" data-page-node-id="Ww6iq9XYCCyjxswxtmzumm">（当前账号）</span>
                   </template>
-                  <template v-else-if="u.role === 'admin'">
-                    <span class="muted">（管理员）</span>
+                  <template v-else-if="u.role === 'admin'" data-page-node-id="zc0DXlN1F0Yj5z78S3x3IY">
+                    <span class="muted" data-page-node-id="Ivp98hrDnSzGCZlH8lBcVE">（管理员）</span>
                   </template>
-                  <template v-else>
-                    <button class="btn btn-mini" :class="u.is_active ? 'btn-warn' : 'btn-primary'" @click="toggleStatus(u)">
+                  <template v-else data-page-node-id="9nZYxYtOFpwtuTHNY8UfUZ">
+                    <button class="btn btn-mini" :class="u.is_active ? 'btn-warn' : 'btn-primary'" @click="toggleStatus(u)" data-page-node-id="cIAATq2sNxY7UZ9guA2i8v">
                       {{ u.is_active ? '禁用' : '启用' }}
                     </button>
-                    <button class="btn btn-mini btn-danger" @click="deleteUser(u)">删除</button>
+                    <button class="btn btn-mini btn-danger" @click="deleteUser(u)" data-page-node-id="ltzCHAcGWSdKUGMY6fHFam">删除</button>
                   </template>
                 </td>
               </tr>
@@ -161,76 +161,76 @@
     </main>
 
     <!-- ===== 登录 / 注册弹层 ===== -->
-    <div v-if="authModal.show" class="modal-mask" @click.self="authModal.show=false">
-      <div class="modal">
-        <h3>{{ authModal.mode === 'login' ? '登录' : '注册' }}</h3>
-        <form @submit.prevent="submitAuth">
-          <template v-if="authModal.mode==='register'">
-            <label>姓名<input v-model="authForm.name" required placeholder="你的姓名"></label>
-            <label>学号/工号<input v-model="authForm.username" required placeholder="登录账号"></label>
-            <label>角色
-              <select v-model="authForm.role">
-                <option value="student">学生</option>
-                <option value="teacher">教师</option>
+    <div v-if="authModal.show" class="modal-mask" @click.self="authModal.show=false" data-page-node-id="6RLzbXTOk2VjIJENsxfz39">
+      <div class="modal" data-page-node-id="lSBRvTYr0CWGfpGXRVR2VP">
+        <h3 data-page-node-id="CRjjik5cPNHiU0wj2Thh55">{{ authModal.mode === 'login' ? '登录' : '注册' }}</h3>
+        <form @submit.prevent="submitAuth" data-page-node-id="lhllHuwAMUy4oBET0B1lqF">
+          <template v-if="authModal.mode==='register'" data-page-node-id="pbVfDZQnuve6dHXD2izXji">
+            <label data-page-node-id="K2NMCZlolsgbOxv25rkIK6">姓名<input v-model="authForm.name" required placeholder="你的姓名" data-page-node-id="bHh47MeuAVXngMNt21IXdo"></label>
+            <label data-page-node-id="g4QSCBGdCG7mjFMW4qSB5a">学号/工号<input v-model="authForm.username" required placeholder="登录账号" data-page-node-id="4ld7ICSc8FqDkelFE5BHuG"></label>
+            <label data-page-node-id="ChT8tEzHgfVYUdXGDITRRt">角色
+              <select v-model="authForm.role" data-page-node-id="IglucLPOLtLAjH6CDua4WA">
+                <option value="student" data-page-node-id="eqApWq4Sby4VgEMysC1gU9">学生</option>
+                <option value="teacher" data-page-node-id="nNmYpquPWCqH3NhtzGGLhx">教师</option>
               </select>
             </label>
           </template>
-          <template v-else>
-            <label>学号/工号<input v-model="authForm.username" required placeholder="登录账号"></label>
+          <template v-else data-page-node-id="C4AvDKdw2bNZemVUBWJD3e">
+            <label data-page-node-id="UtpRq5fh1v8XIby0Xntp51">学号/工号<input v-model="authForm.username" required placeholder="登录账号" data-page-node-id="99kCAPyWihB8gn29rfXGx7"></label>
           </template>
-          <label>密码<input type="password" v-model="authForm.password" required minlength="6" placeholder="密码(至少6位)"></label>
-          <button class="btn btn-primary btn-block" type="submit">
+          <label data-page-node-id="QVTTpD5MvQUwYi1gIjNP5z">密码<input type="password" v-model="authForm.password" required minlength="6" placeholder="密码(至少6位)" data-page-node-id="zdxIGDtg707wW16rBMSxWe"></label>
+          <button class="btn btn-primary btn-block" type="submit" data-page-node-id="Ihcb7MgP7FoxA4dvrvnoUD">
             {{ authModal.mode === 'login' ? '登录' : '注册并登录' }}
           </button>
-          <p class="muted center">
-            <a href="#" @click.prevent="authModal.mode = authModal.mode==='login' ? 'register' : 'login'">
+          <p class="muted center" data-page-node-id="9clQzc1B5ZEI63hssUYpYz">
+            <a href="#" @click.prevent="authModal.mode = authModal.mode==='login' ? 'register' : 'login'" data-page-node-id="NS7GHYJYZ10P6DnA38M5nr">
               {{ authModal.mode === 'login' ? '没有账号？去注册' : '已有账号？去登录' }}
             </a>
           </p>
         </form>
-        <button class="modal-close" @click="authModal.show=false">×</button>
+        <button class="modal-close" @click="authModal.show=false" data-page-node-id="70Pt50J6AWdkgYTRcc2Xv8">×</button>
       </div>
     </div>
 
     <!-- ===== 教师发布活动弹层 ===== -->
-    <div v-if="publishModal" class="modal-mask" @click.self="publishModal=false">
-      <div class="modal">
-        <h3>发布新活动</h3>
-        <form @submit.prevent="submitPublish">
-          <label>活动名称<input v-model="publishForm.title" required maxlength="64" placeholder="如：校园篮球联赛"></label>
-          <label>活动地点<input v-model="publishForm.location" required maxlength="128" placeholder="如：东区篮球场"></label>
-          <label>活动描述<textarea v-model="publishForm.description" rows="3" placeholder="活动内容说明（可选）"></textarea></label>
-          <div class="form-row">
-            <label>开始时间<input type="datetime-local" v-model="publishForm.start_time" required></label>
-            <label>结束时间<input type="datetime-local" v-model="publishForm.end_time" required></label>
+    <div v-if="publishModal" class="modal-mask" @click.self="publishModal=false" data-page-node-id="eRuj6JeIFXPghIiNYr9dC1">
+      <div class="modal" data-page-node-id="0ddpE7ggjVQ2NSa98BQRQs">
+        <h3 data-page-node-id="Lue1RK7MhDco4dQmJpnVKJ">发布新活动</h3>
+        <form @submit.prevent="submitPublish" data-page-node-id="JJdqsytjyANpWGaDK4LV5J">
+          <label data-page-node-id="QWUlbfHk19Gz91RLa5JxPD">活动名称<input v-model="publishForm.title" required maxlength="64" placeholder="如：校园篮球联赛" data-page-node-id="MYe91AIg86F61rwpeykFfB"></label>
+          <label data-page-node-id="3IHRaaP76FNAtNQKLXuBOF">活动地点<input v-model="publishForm.location" required maxlength="128" placeholder="如：东区篮球场" data-page-node-id="yWlv20jfKAQhGdWu1m7zOT"></label>
+          <label data-page-node-id="VoYwQtp1TCb26ooX4KMViu">活动描述<textarea v-model="publishForm.description" rows="3" placeholder="活动内容说明（可选）"></textarea></label>
+          <div class="form-row" data-page-node-id="odEOSowCy4tHSa6FHABLDH">
+            <label data-page-node-id="Pq1R2WOfvpdibBU8wgn998">开始时间<input type="datetime-local" v-model="publishForm.start_time" required data-page-node-id="O9xwRPT2ZcRBeHeSIzjwCc"></label>
+            <label data-page-node-id="lsw5Cps4cmdVTRVmV0H1F1">结束时间<input type="datetime-local" v-model="publishForm.end_time" required data-page-node-id="1L4Cj1DvZHRgGCddfLDARb"></label>
           </div>
-          <label>人数上限<input type="number" v-model.number="publishForm.capacity" required min="1" max="10000"></label>
-          <button class="btn btn-primary btn-block" type="submit">发布</button>
+          <label data-page-node-id="mrDNyImtgbBgH1x702ak3S">人数上限<input type="number" v-model.number="publishForm.capacity" required min="1" max="10000" data-page-node-id="Em0pJYLLcfCxJjbhEbOr5d"></label>
+          <button class="btn btn-primary btn-block" type="submit" data-page-node-id="zkv3q7h4HgKsdlArojSYG0">发布</button>
         </form>
-        <button class="modal-close" @click="publishModal=false">×</button>
+        <button class="modal-close" @click="publishModal=false" data-page-node-id="BRJHjYWxofpX42KWBi4fIE">×</button>
       </div>
     </div>
 
     <!-- ===== 报名名单弹层（教师） ===== -->
-    <div v-if="studentListModal" class="modal-mask" @click.self="studentListModal=false">
-      <div class="modal">
-        <h3>{{ currentAct.title }} · 报名名单</h3>
-        <table v-if="studentList.length" class="plain-table">
-          <thead><tr><th>学号/工号</th><th>姓名</th></tr></thead>
-          <tbody>
-            <tr v-for="s in studentList" :key="s.id"><td>{{ s.username }}</td><td>{{ s.name }}</td></tr>
+    <div v-if="studentListModal" class="modal-mask" @click.self="studentListModal=false" data-page-node-id="K1RsP7BkSXGEHw1u7DrttD">
+      <div class="modal" data-page-node-id="psczvrcypTU9V2UcbgBL2u">
+        <h3 data-page-node-id="mQ1LldG2mpdDxXwXxH1UYd">{{ currentAct.title }} · 报名名单</h3>
+        <table v-if="studentList.length" class="plain-table" data-page-node-id="DbBBs6PGIMQhTD0p1WrpyP">
+          <thead data-page-node-id="citX1rGsztHVyCKdJ8Hdnl"><tr data-page-node-id="QqZv4OjCabvrKOOwrJTTFr"><th data-page-node-id="htEQufzINWDhv4HL4g1HvD">学号/工号</th><th data-page-node-id="SIjb1BWisr3woWFgiMDt72">姓名</th></tr></thead>
+          <tbody data-page-node-id="0tOzhMsiRy3HJGbqVTX0Ui">
+            <tr v-for="s in studentList" :key="s.id" data-page-node-id="EgfyFbQ5vLK86fbjyCD9T0"><td data-page-node-id="QAxr5nCiD9THBUjH8J4V2e">{{ s.username }}</td><td data-page-node-id="Z4BPYfZ7f6THC3jqGxNyDu">{{ s.name }}</td></tr>
           </tbody>
         </table>
-        <p v-else class="muted">还没有人报名</p>
-        <button class="modal-close" @click="studentListModal=false">×</button>
+        <p v-else class="muted" data-page-node-id="caWJHGNISwa1FbN6b0ukBq">还没有人报名</p>
+        <button class="modal-close" @click="studentListModal=false" data-page-node-id="FBeBmIEu7FkdtQuBzJnyzm">×</button>
       </div>
     </div>
 
-    <footer class="footer">校园活动管理系统 V1.0 · 软件工程实验一</footer>
+    <footer class="footer" data-page-node-id="EpuxVZ0ampOQoOOKjqlRsw">校园活动管理系统 V1.0 · 软件工程实验一</footer>
   </div>
 
-  <!-- Vue 3 CDN（无需构建工具） -->
-  <script src="https://unpkg.com/vue@3/dist/vue.global.prod.js"></script>
+  <!-- Vue 3（本地 vendor，避免 CDN 网络依赖） -->
+  <script src="vendor/vue.global.prod.js"></script>
   <!-- 应用逻辑 -->
   <script src="app.js"></script>
 </body>
