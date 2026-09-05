@@ -269,6 +269,46 @@ def main():
     check("TEST-30", "REQ-10", "注册 admin 角色被拒", "返回 400 拒绝",
           r.json(), r.status_code == 400)
 
+    # ===== 体验反馈新增：教师/管理员名单查看权限（REQ-04/09 体验完善）=====
+    # TEST-31：管理员查看任意活动报名名单（不受发布人限制）
+    r = get(f"/api/activities/{new_id}/registrations", admin_tk)
+    admin_view = r.json().get("students", [])
+    check("TEST-31", "REQ-09", "管理员查看任意活动报名名单",
+          f"返回 200，含报名学生 {len(admin_view)} 人",
+          r.json(), r.status_code == 200 and len(admin_view) >= 1)
+
+    # TEST-32：教师查看他人活动报名名单（fail-closed：应 403）
+    # 注册接口不开放教师角色 → 直接插数据库构造 teacher02 + 他发布的活动
+    sys.path.insert(0, str(ROOT))
+    from backend.auth import hash_password
+    conn = sqlite3.connect(DB_PATH)
+    try:
+        conn.execute(
+            "INSERT INTO users (username, name, password_hash, role) VALUES (?, ?, ?, ?)",
+            ("teacher02", "李老师", hash_password("123456"), "teacher"),
+        )
+        cur = conn.execute(
+            "INSERT INTO activities (title, description, location, start_time, end_time, capacity, creator_id) "
+            "VALUES ('李老师专属活动', '', '测试楼', ?, ?, 10, "
+            "(SELECT id FROM users WHERE username='teacher02'))",
+            (future, future_end),
+        )
+        t2_act_id = cur.lastrowid
+        conn.commit()
+    finally:
+        conn.close()
+    r = get(f"/api/activities/{t2_act_id}/registrations", teacher_tk)
+    check("TEST-32", "REQ-04", "教师查看他人活动报名名单",
+          "返回 403（fail-closed）", r.json(), r.status_code == 403)
+
+    # TEST-33/34：教师/管理员均不应被允许报名（活动报名是学生专属能力）
+    r = post(f"/api/activities/{new_id}/register", None, teacher_tk)
+    check("TEST-33", "REQ-06", "教师点击报名（活动广场UI已隐藏，后端兜底）",
+          "返回 403", r.json(), r.status_code == 403)
+    r = post(f"/api/activities/{new_id}/register", None, admin_tk)
+    check("TEST-34", "REQ-06", "管理员点击报名（活动广场UI已隐藏，后端兜底）",
+          "返回 403", r.json(), r.status_code == 403)
+
     # ---------- 汇总 ----------
     print("\n" + "=" * 60)
     print(f"验证结果汇总：共 {len(RESULTS)} 条用例，通过 {PASS} 条，失败 {FAIL} 条")

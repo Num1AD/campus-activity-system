@@ -65,13 +65,31 @@
               <span data-page-node-id="RFWBM41Cw9qpKfgZpxp95l">人数 {{ act.registered }}/{{ act.capacity }}</span>
             </div>
             <div class="act-foot" data-page-node-id="Q9mkE1HhYExwocnZBmPLWx">
-              <button
-                class="btn"
-                :class="regState(act) === 'registered' ? 'btn-danger' : 'btn-primary'"
-                :disabled="act.status !== '报名中'"
-                @click="handleRegister(act)" data-page-node-id="Rl5zRkwRBkZq8NUIbPnIPu">
-                {{ regState(act) === 'registered' ? '取消报名' : (act.status === '报名中' ? '报名' : '不可报名') }}
-              </button>
+              <!-- 学生：报名 / 取消报名 / 不可报名 -->
+              <template v-if="!user || user.role==='student'" data-page-node-id="Rl5zRkwRBkZq8NUIbPnIPu">
+                <button
+                  class="btn"
+                  :class="regState(act) === 'registered' ? 'btn-danger' : 'btn-primary'"
+                  :disabled="!user || act.status !== '报名中'"
+                  @click="handleRegister(act)" data-page-node-id="Rl5zRkwRBkZq8NUIbPnIPu">
+                  {{ !user ? '登录后报名' :
+                       (regState(act) === 'registered' ? '取消报名'
+                       : (act.status === '报名中' ? '报名' : '不可报名')) }}
+                </button>
+              </template>
+              <!-- 教师：仅看自己发布活动的名单；活动广场不提供报名入口 -->
+              <template v-else-if="user.role==='teacher'" data-page-node-id="c1Te4VwCx1B4OaS2T9rM8z">
+                <button v-if="act.creator_id === user.id" class="btn btn-ghost" @click="viewStudents(act)" data-page-node-id="Fs5L9wRBkZq8NUIbPnIPu">
+                  报名名单({{ act.registered }})
+                </button>
+                <span v-else class="muted" data-page-node-id="tK3j9B6wN4yZxQvHm7uL0p">（其他教师的活动）</span>
+              </template>
+              <!-- 管理员：可查看任意活动的报名名单 -->
+              <template v-else data-page-node-id="hQzV2E1bY8K9wCxJ3nT7uL">
+                <button class="btn btn-ghost" @click="viewStudents(act)" data-page-node-id="hQzV2E1bY8K9wCxJ3nT7uL">
+                  报名名单({{ act.registered }})
+                </button>
+              </template>
             </div>
           </div>
         </div>
