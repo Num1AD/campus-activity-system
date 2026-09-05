@@ -41,13 +41,18 @@ def calc_status(start_time: str, is_cancelled: int) -> str:
 def activity_to_dict(db: sqlite3.Connection, row: sqlite3.Row) -> dict:
     """
     把 activities 表的一行转换为接口返回字典：
-    附带报名人数、剩余名额与动态状态。
+    附带报名人数、剩余名额、动态状态与发布教师姓名（creator_name）。
     """
     registered = db.execute(
         "SELECT COUNT(*) AS n FROM registrations WHERE activity_id = ?",
         (row["id"],),
     ).fetchone()["n"]
     status = calc_status(row["start_time"], row["is_cancelled"])
+    # 发布教师姓名（活动卡片展示需要；三种身份都可见）
+    creator = db.execute(
+        "SELECT name FROM users WHERE id = ?", (row["creator_id"],)
+    ).fetchone()
+    creator_name = creator["name"] if creator else "未知"
     return {
         "id": row["id"],
         "title": row["title"],
@@ -57,6 +62,7 @@ def activity_to_dict(db: sqlite3.Connection, row: sqlite3.Row) -> dict:
         "end_time": row["end_time"],
         "capacity": row["capacity"],
         "creator_id": row["creator_id"],
+        "creator_name": creator_name,
         "status": status,
         "registered": registered,
         "remaining": max(row["capacity"] - registered, 0),
