@@ -39,6 +39,16 @@ app = FastAPI(
     lifespan=lifespan,
 )
 
+
+@app.middleware("http")
+async def no_cache_html(request, call_next):
+    """入口 HTML 不缓存：避免浏览器加载旧版页面（页面改动后必须立即可见）。
+    app.js/style.css 等静态资源通过 URL 版本号(?v=)控制更新。"""
+    response = await call_next(request)
+    if request.url.path.endswith(".html") or request.url.path.rstrip("/") == "":
+        response.headers["Cache-Control"] = "no-cache, no-store, must-revalidate"
+    return response
+
 # 注册业务路由（统一 /api 前缀）
 app.include_router(users.router)
 app.include_router(activities.router)
