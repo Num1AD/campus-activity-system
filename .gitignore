@@ -18,3 +18,9 @@ Thumbs.db
 # 编辑器
 .idea/
 .vscode/
+
+# 本机专用启动脚本（含本机绝对路径，不提交仓库）
+启动系统.bat
+
+# 实验报告（仅本地完成，不提交 GitHub）
+report/
