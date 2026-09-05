@@ -92,7 +92,7 @@ def _seed(conn: sqlite3.Connection) -> None:
     # 导入 auth 放在函数内，避免模块循环依赖
     from backend.auth import hash_password
 
-    # 演示账号（学生/教师密码 123456；管理员 admin01 / Admin@123456）
+    # 演示账号（密码统一 123456；管理员 admin01 / 1234567）
     demo_users = [
         ("admin01", "系统管理员", "admin"),
         ("teacher01", "王老师", "teacher"),
@@ -101,8 +101,8 @@ def _seed(conn: sqlite3.Connection) -> None:
     ]
     user_ids = {}
     for username, name, role in demo_users:
-        # 管理员使用独立强密码，普通演示账号统一 123456
-        pwd = "Admin@123456" if role == "admin" else "123456"
+        # 管理员使用独立密码便于记忆输入，普通演示账号统一 123456
+        pwd = "1234567" if role == "admin" else "123456"
         cur = conn.execute(
             "INSERT INTO users (username, name, password_hash, role, is_active) VALUES (?, ?, ?, ?, 1)",
             (username, name, hash_password(pwd), role),

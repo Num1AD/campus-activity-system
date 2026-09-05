@@ -220,7 +220,7 @@ def main():
           names, r.status_code == 200 and "小明" in names)
 
     # ===== REQ-09 管理员账号管理 =====
-    admin_tk = login("admin01", "Admin@123456")
+    admin_tk = login("admin01", "1234567")
 
     r = get("/api/admin/users", stu1_tk)
     check("TEST-23", "REQ-09", "非管理员访问管理接口（越权）", "返回 403 拒绝",
