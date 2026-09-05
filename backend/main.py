@@ -19,7 +19,7 @@ from fastapi import FastAPI
 from fastapi.staticfiles import StaticFiles
 
 from backend.database import init_db
-from backend.routers import activities, registrations, users
+from backend.routers import activities, admin, registrations, users
 
 # 前端静态目录：项目根/frontend
 FRONTEND_DIR = Path(__file__).resolve().parent.parent / "frontend"
@@ -43,6 +43,7 @@ app = FastAPI(
 app.include_router(users.router)
 app.include_router(activities.router)
 app.include_router(registrations.router)
+app.include_router(admin.router)
 
 
 @app.get("/api/health", summary="健康检查")

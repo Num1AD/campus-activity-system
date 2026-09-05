@@ -44,10 +44,11 @@ async function api(path, options = {}) {
 const app = createApp({
   data() {
     return {
-      view: 'list',              // 当前视图：list=活动广场，mine=我的活动
+      view: 'list',              // 当前视图：list=活动广场，mine=我的活动，users=用户管理(管理员)
       user: null,                // 当前登录用户（null=未登录）
       activities: [],            // 活动广场列表
       mineActivities: [],        // 我的活动列表
+      adminUsers: [],            // 用户管理列表（仅管理员）
       myRegIds: new Set(),       // 我报名过的活动 id 集合（用于按钮态）
       // 登录/注册弹层
       authModal: { show: false, mode: 'login' },
@@ -69,17 +70,31 @@ const app = createApp({
   },
 
   methods: {
+    /* ---------- 角色显示 ---------- */
+    roleText(role) {
+      // 角色名转中文显示（顶部徽章与用户管理表通用）
+      return { student: '学生', teacher: '教师', admin: '管理员' }[role] || role;
+    },
+
     /* ---------- 视图切换 ---------- */
     async switchView(v) {
       this.view = v;
-      // 进入"我的活动"需登录
+      // 需登录的视图：我的活动（学生/教师）、用户管理（仅管理员）
       if (v === 'mine') {
-        if (!this.user) {
+        if (!this.user || this.user.role === 'admin') {
           this.openAuth('login');
           this.view = 'list';
           return;
         }
         await this.loadMine();
+      }
+      if (v === 'users') {
+        if (!this.user || this.user.role !== 'admin') {
+          this.openAuth('login');
+          this.view = 'list';
+          return;
+        }
+        await this.loadUsers();
       }
     },
 
@@ -139,7 +154,7 @@ const app = createApp({
       // 活动广场列表；若已登录同时维护"我报过哪些"集合
       const data = await api('/api/activities');
       this.activities = data.activities;
-      if (this.user) {
+      if (this.user && this.user.role !== 'admin') {
         const mine = await api('/api/my-activities');
         this.mineActivities = mine.activities;
         this.myRegIds = new Set(
@@ -147,6 +162,39 @@ const app = createApp({
             ? this.mineActivities.map((a) => a.id)
             : []  // 教师无报名概念
         );
+      }
+    },
+
+    /* ---------- 用户管理（仅管理员，REQ-09） ---------- */
+    async loadUsers() {
+      const data = await api('/api/admin/users');
+      this.adminUsers = data.users;
+    },
+
+    async toggleStatus(u) {
+      // 禁用/启用账号
+      const action = u.is_active ? '禁用' : '启用';
+      if (!confirm(`确定${action}账号「${u.name}（${u.username}）」吗？${u.is_active ? '禁用后该账号将无法登录。' : ''}`)) return;
+      try {
+        await api(`/api/admin/users/${u.id}/status`, {
+          method: 'PUT',
+          body: JSON.stringify({ is_active: !u.is_active }),
+        });
+        alert(`已${action}`);
+        await this.loadUsers();
+      } catch (e) {
+        alert(e.message);
+      }
+    },
+
+    async deleteUser(u) {
+      if (!confirm(`确定删除账号「${u.name}（${u.username}）」吗？该操作不可恢复！`)) return;
+      try {
+        await api(`/api/admin/users/${u.id}`, { method: 'DELETE' });
+        alert('账号已删除');
+        await this.loadUsers();
+      } catch (e) {
+        alert(e.message);
       }
     },
 

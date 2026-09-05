@@ -77,4 +77,14 @@ def get_current_user(
     user = db.execute("SELECT * FROM users WHERE id = ?", (user_id,)).fetchone()
     if user is None:
         raise HTTPException(status_code=401, detail="用户不存在")
+    # 账号被管理员禁用后，其已有 token 立即失效（fail-closed）
+    if not user["is_active"]:
+        raise HTTPException(status_code=401, detail="账号已被禁用，请联系管理员")
+    return user
+
+
+def require_admin(user=Depends(get_current_user)) -> sqlite3.Row:
+    """FastAPI 依赖：校验当前用户是管理员，否则 403（REQ-09）。"""
+    if user["role"] != "admin":
+        raise HTTPException(status_code=403, detail="仅管理员可执行此操作")
     return user

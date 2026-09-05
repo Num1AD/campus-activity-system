@@ -22,13 +22,14 @@ DB_PATH = Path(__file__).resolve().parent / "activity.db"
 # 建表 SQL
 # ---------------------------------------------------------------
 SCHEMA_SQL = """
--- 用户表：注册登录与角色识别（REQ-01/02）
+-- 用户表：注册登录与角色识别（REQ-01/02/09/10）
 CREATE TABLE IF NOT EXISTS users (
     id            INTEGER PRIMARY KEY AUTOINCREMENT,
     username      TEXT    NOT NULL UNIQUE,              -- 学号/工号，登录名
     name          TEXT    NOT NULL,                     -- 真实姓名
     password_hash TEXT    NOT NULL,                     -- 密码哈希（salt$digest，见 auth.py）
-    role          TEXT    NOT NULL CHECK (role IN ('student', 'teacher')),
+    role          TEXT    NOT NULL CHECK (role IN ('student', 'teacher', 'admin')),
+    is_active     INTEGER NOT NULL DEFAULT 1,           -- 账号状态：1=正常，0=禁用（REQ-09）
     created_at    TEXT    NOT NULL DEFAULT (datetime('now', 'localtime'))
 );
 
@@ -91,17 +92,20 @@ def _seed(conn: sqlite3.Connection) -> None:
     # 导入 auth 放在函数内，避免模块循环依赖
     from backend.auth import hash_password
 
-    # 演示账号（密码统一 123456）
+    # 演示账号（学生/教师密码 123456；管理员 admin01 / Admin@123456）
     demo_users = [
+        ("admin01", "系统管理员", "admin"),
         ("teacher01", "王老师", "teacher"),
         ("student01", "小明",   "student"),
         ("student02", "小红",   "student"),
     ]
     user_ids = {}
     for username, name, role in demo_users:
+        # 管理员使用独立强密码，普通演示账号统一 123456
+        pwd = "Admin@123456" if role == "admin" else "123456"
         cur = conn.execute(
-            "INSERT INTO users (username, name, password_hash, role) VALUES (?, ?, ?, ?)",
-            (username, name, hash_password("123456"), role),
+            "INSERT INTO users (username, name, password_hash, role, is_active) VALUES (?, ?, ?, ?, 1)",
+            (username, name, hash_password(pwd), role),
         )
         user_ids[username] = cur.lastrowid
 

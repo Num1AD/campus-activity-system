@@ -219,6 +219,56 @@ def main():
     check("TEST-22", "REQ-04", "教师查看报名名单", "名单包含报名学生姓名",
           names, r.status_code == 200 and "小明" in names)
 
+    # ===== REQ-09 管理员账号管理 =====
+    admin_tk = login("admin01", "Admin@123456")
+
+    r = get("/api/admin/users", stu1_tk)
+    check("TEST-23", "REQ-09", "非管理员访问管理接口（越权）", "返回 403 拒绝",
+          r.json(), r.status_code == 403)
+
+    r = get("/api/admin/users", admin_tk)
+    users = r.json().get("users", [])
+    roles = {u["role"] for u in users}
+    check("TEST-24", "REQ-09", "管理员查看全部账号", "列表含 student/teacher/admin 角色",
+          roles, r.status_code == 200 and {"student", "teacher", "admin"} <= roles)
+
+    # 禁用 student02 → 登录被拒 → 启用 → 恢复登录
+    stu2_id = [u["id"] for u in users if u["username"] == "student02"][0]
+    r = requests.put(f"{BASE}/api/admin/users/{stu2_id}/status", json={"is_active": False},
+                     headers={"Authorization": f"Bearer {admin_tk}"}, timeout=5)
+    ok_disabled = r.status_code == 200
+    r = post("/api/login", {"username": "student02", "password": "123456"})
+    check("TEST-25", "REQ-09", "禁用后该账号无法登录", "返回 403 拒绝",
+          r.json(), ok_disabled and r.status_code == 403)
+    requests.put(f"{BASE}/api/admin/users/{stu2_id}/status", json={"is_active": True},
+                 headers={"Authorization": f"Bearer {admin_tk}"}, timeout=5)
+    r = post("/api/login", {"username": "student02", "password": "123456"})
+    check("TEST-26", "REQ-09", "启用后账号恢复登录", "登录成功返回 token",
+          "ok" if r.status_code == 200 else r.json(), r.status_code == 200)
+
+    # 自我保护：管理员不能禁用/删除自己（取 admin 角色账号）
+    admin_id = [u["id"] for u in users if u["role"] == "admin"][0]
+    r = requests.put(f"{BASE}/api/admin/users/{admin_id}/status", json={"is_active": False},
+                     headers={"Authorization": f"Bearer {admin_tk}"}, timeout=5)
+    check("TEST-27", "REQ-09", "管理员禁用自己（保护）", "返回 400 拒绝",
+          r.json(), r.status_code == 400)
+    r = requests.delete(f"{BASE}/api/admin/users/{admin_id}",
+                        headers={"Authorization": f"Bearer {admin_tk}"}, timeout=5)
+    check("TEST-28", "REQ-09", "管理员删除自己（保护）", "返回 400 拒绝",
+          r.json(), r.status_code == 400)
+
+    # 删除学生账号（级联清理）
+    r = requests.delete(f"{BASE}/api/admin/users/{stu2_id}",
+                        headers={"Authorization": f"Bearer {admin_tk}"}, timeout=5)
+    check("TEST-29", "REQ-09", "管理员删除学生账号", "删除成功",
+          r.json(), r.status_code == 200)
+
+    # ===== REQ-10 注册不开放管理员角色 =====
+    r = post("/api/register", {"username": "20267777", "name": "x",
+                               "password": "abc123", "role": "admin"})
+    check("TEST-30", "REQ-10", "注册 admin 角色被拒", "返回 400 拒绝",
+          r.json(), r.status_code == 400)
+
     # ---------- 汇总 ----------
     print("\n" + "=" * 60)
     print(f"验证结果汇总：共 {len(RESULTS)} 条用例，通过 {PASS} 条，失败 {FAIL} 条")

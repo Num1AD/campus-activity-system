@@ -48,6 +48,7 @@ body {
 }
 .role-student { background: #dbeafe; color: #1d4ed8; }
 .role-teacher { background: #fef3c7; color: #92400e; }
+.role-admin { background: #ede9fe; color: #6d28d9; }
 
 /* ---------- 按钮 ---------- */
 .btn {
@@ -59,8 +60,11 @@ body {
 .btn-primary:hover:not(:disabled) { background: #1e40af; }
 .btn-danger { background: #ef4444; color: #fff; }
 .btn-danger:hover:not(:disabled) { background: #dc2626; }
+.btn-warn { background: #f59e0b; color: #fff; }
+.btn-warn:hover:not(:disabled) { background: #d97706; }
 .btn-ghost { background: transparent; color: inherit; border: 1px solid #d1d5db; }
 .btn-ghost:hover { background: rgba(255,255,255,.1); }
+.btn-mini { padding: 4px 12px; font-size: 13px; border-radius: 5px; margin-right: 6px; }
 .btn-block { width: 100%; margin-top: 6px; }
 
 /* ---------- 布局 ---------- */
@@ -125,10 +129,13 @@ body {
 }
 .modal-close:hover { color: #374151; }
 
-/* ---------- 表格（报名名单） ---------- */
+/* ---------- 表格（报名名单 / 用户管理） ---------- */
+.table-wrap { background: #fff; border-radius: 12px; padding: 6px 10px; box-shadow: 0 1px 4px rgba(0,0,0,.06); overflow-x: auto; }
 .plain-table { width: 100%; border-collapse: collapse; font-size: 14px; }
-.plain-table th, .plain-table td { padding: 8px 10px; border-bottom: 1px solid #e5e7eb; text-align: left; }
+.plain-table th, .plain-table td { padding: 10px 10px; border-bottom: 1px solid #e5e7eb; text-align: left; }
 .plain-table th { background: #f9fafb; color: #374151; }
+.admin-table td, .admin-table th { white-space: nowrap; }
+.op-cell .muted { font-size: 12px; }
 
 /* ---------- 页脚 ---------- */
 .footer { text-align: center; color: #9ca3af; font-size: 12px; padding: 20px; }

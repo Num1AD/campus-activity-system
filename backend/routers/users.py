@@ -42,6 +42,7 @@ def user_dict(user: sqlite3.Row) -> dict:
         "username": user["username"],
         "name": user["name"],
         "role": user["role"],
+        "is_active": bool(user["is_active"]),
         "created_at": user["created_at"],
     }
 
@@ -79,6 +80,9 @@ def login(req: LoginRequest, db: sqlite3.Connection = Depends(get_db)):
     # 统一报错文案，避免暴露"用户是否存在"（防用户名探测）
     if user is None or not verify_password(req.password, user["password_hash"]):
         raise HTTPException(status_code=401, detail="用户名或密码错误")
+    # 管理员禁用账号后拒绝登录（REQ-09）
+    if not user["is_active"]:
+        raise HTTPException(status_code=403, detail="账号已被禁用，请联系管理员")
 
     token = create_token(user["id"])
     return {"token": token, "user": user_dict(user)}
