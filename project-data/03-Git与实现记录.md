@@ -14,6 +14,7 @@
 | 5 | 2026-09-01 00:1x | b4aaf5e | docs: 完成阶段③软件设计 | 软件设计 | 新增 docs/04-软件设计.md（架构/模块/数据/决策） |
 | 6 | 2026-09-02 23:4x | 52f1b15 | feat: 实现后端全部API（数据库/认证/用户/活动/报名） | REQ-01~08 | 新增 backend/（database/auth/helpers + 三路由 + main），requirements.txt |
 | 7 | 2026-09-02 23:4x | d12f0db | feat: 实现Vue3前端页面与README | REQ-01~08 | 新增 frontend/（index.html/app.js/style.css）+ README.md |
+| 8 | 2026-09-05 18:09 | 8b6758d | feat: 新增管理员角色与账号管理模块 | REQ-09/10 | 新增 admin 路由与前端用户管理视图、is_active 字段；tests +8 用例 |
 
 ## 6.1 实现结果概述（随阶段推进更新）
 
