@@ -5,10 +5,10 @@
 ## 技术栈
 
 - 后端：FastAPI（Python）+ SQLite（标准库 sqlite3）
-- 前端：Vue 3（CDN，无构建步骤）+ 原生 HTML/CSS/JS
+- 前端：Vue 3（本地 vendor 引入，无构建步骤、离线可用）+ 原生 HTML/CSS/JS
 - 部署：同源部署（FastAPI 托管前端静态文件），本地运行
 
-## 功能（对应需求 REQ-01~08）
+## 功能（对应需求 REQ-01~10）
 
 | 角色 | 功能 |
 |---|---|
@@ -53,7 +53,7 @@ backend/            FastAPI 后端
   auth.py           认证（密码哈希 + token）
   helpers.py        活动状态/字典转换公共函数
   routers/          业务路由（users/activities/registrations）
-frontend/           Vue3 前端（index.html + app.js + style.css）
+frontend/           Vue3 前端（index.html + app.js + style.css + vendor/ 本地依赖）
 docs/               需求、工程意图、决策、设计文档
 project-data/       实验过程数据记录
 report/             实验报告工作副本
