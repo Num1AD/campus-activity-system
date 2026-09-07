@@ -18,9 +18,8 @@
           <span class="brand-name" data-page-node-id="2HEWFMrcI8NSiEA34gNS0h">校园活动管理系统</span>
         </div>
         <nav class="nav" data-page-node-id="APpoYMFBP018neauZuErRO">
-          <button class="nav-btn" :class="{active: view==='list'}" @click="switchView('list')" data-page-node-id="f3j58LRA49JRNZmTQsJ3yF">活动广场</button>
-          <button v-if="user && user.role==='admin'" class="nav-btn" :class="{active: view==='users'}" @click="switchView('users')" data-page-node-id="8b9U4SpEgo4UsUTnqEsVzY">用户管理</button>
-          <button v-if="user && user.role!=='admin'" class="nav-btn" :class="{active: view==='mine'}" @click="switchView('mine')" data-page-node-id="qfkFQLsArkhFkhC6XLP0Tz">
+          <button class="nav-btn" :class="{active: view==='list'}" @click="switchView('list')">活动广场</button>
+          <button v-if="user" class="nav-btn" :class="{active: view==='mine'}" @click="switchView('mine')">
             {{ user.role === 'teacher' ? '我的活动(管理)' : '我的活动' }}
           </button>
         </nav>
@@ -79,17 +78,11 @@
                 </button>
               </template>
               <!-- 教师：仅看自己发布活动的名单；活动广场不提供报名入口 -->
-              <template v-else-if="user.role==='teacher'" data-page-node-id="c1Te4VwCx1B4OaS2T9rM8z">
-                <button v-if="act.creator_id === user.id" class="btn btn-ghost" @click="viewStudents(act)" data-page-node-id="Fs5L9wRBkZq8NUIbPnIPu">
+              <template v-else-if="user.role==='teacher'">
+                <button v-if="act.creator_id === user.id" class="btn btn-ghost" @click="viewStudents(act)">
                   报名名单({{ act.registered }})
                 </button>
-                <span v-else class="muted" data-page-node-id="tK3j9B6wN4yZxQvHm7uL0p">（其他教师的活动）</span>
-              </template>
-              <!-- 管理员：可查看任意活动的报名名单 -->
-              <template v-else data-page-node-id="hQzV2E1bY8K9wCxJ3nT7uL">
-                <button class="btn btn-ghost" @click="viewStudents(act)" data-page-node-id="hQzV2E1bY8K9wCxJ3nT7uL">
-                  报名名单({{ act.registered }})
-                </button>
+                <span v-else class="muted">（其他教师的活动）</span>
               </template>
             </div>
           </div>
@@ -134,50 +127,6 @@
         </div>
       </section>
 
-      <!-- ===== 视图三：用户管理（仅管理员，REQ-09） ===== -->
-      <section v-if="view==='users'" class="page" data-page-node-id="yFwog79dopqVTvRtIPbTzj">
-        <div class="page-head" data-page-node-id="3enDCOeY5o9uyLQ2Y2hEeJ">
-          <h2 data-page-node-id="n45KxQl6YqdKH3p3fDJ0nw">用户管理</h2>
-          <p class="muted" data-page-node-id="cMtaGUUSt1ig0fKEnopkzI">管理系统内全部注册账号（禁用后该账号无法登录）</p>
-        </div>
-        <div class="table-wrap" data-page-node-id="MsEkgxk15As39SkLqNFeRF">
-          <table class="plain-table admin-table" data-page-node-id="iHWMto9gu6U5BJfR0Z3XWA">
-            <thead data-page-node-id="WJ9e8ssTf5NigYi2Bx1Avr">
-              <tr data-page-node-id="DBxp3oZEr8Rvc5cyMK4k2i">
-                <th data-page-node-id="dFlOZRBhodwKqGvu0LdzWG">ID</th><th data-page-node-id="Ta132r89DdR8zKFhdSWPXx">学号/工号</th><th data-page-node-id="rkinYU0shXHXARSWRnPOQm">姓名</th><th data-page-node-id="XRceK2pjIarAGteiSakOaY">角色</th><th data-page-node-id="cjj8VH4B8kUNvCu2oZnhRP">状态</th><th data-page-node-id="DweOswZDvGB3wNtgaFI0C5">注册时间</th><th data-page-node-id="7W17qGHQxbIecv229WHCcv">操作</th>
-              </tr>
-            </thead>
-            <tbody data-page-node-id="bwFYoTKGH84VLwbgTJ0XUE">
-              <tr v-for="u in adminUsers" :key="u.id" data-page-node-id="DHDrVsKyKSQdKFCfSFBK4m">
-                <td data-page-node-id="ay8JidedZWKF28MxOZw2OW">{{ u.id }}</td>
-                <td data-page-node-id="P79N4QaKquaPUQ9SF1PG0u">{{ u.username }}</td>
-                <td data-page-node-id="DM2xajnXErcm4n7zG6NbH7">{{ u.name }}</td>
-                <td data-page-node-id="AjUkk7ro0hUeHxL7iF3jTz"><em class="role-badge" :class="'role-'+u.role" data-page-node-id="AU1UJPmBM2trGcLEdvph9N">{{ roleText(u.role) }}</em></td>
-                <td data-page-node-id="ND8kzPa7m7J8dPpT1DCtWY">
-                  <span class="status-tag" :class="u.is_active ? 'st-报名中' : 'st-已取消'" data-page-node-id="t3Ds39aAtCBpyGD74JCuOX">
-                    {{ u.is_active ? '正常' : '已禁用' }}
-                  </span>
-                </td>
-                <td data-page-node-id="dVJA4mEIsSWYaq69oBckFc">{{ u.created_at }}</td>
-                <td class="op-cell" data-page-node-id="99LyEkes9cgY3x3GGGgrJs">
-                  <template v-if="u.id === user.id" data-page-node-id="E6LfQUZihp3acPhM2LMcWM">
-                    <span class="muted" data-page-node-id="Ww6iq9XYCCyjxswxtmzumm">（当前账号）</span>
-                  </template>
-                  <template v-else-if="u.role === 'admin'" data-page-node-id="zc0DXlN1F0Yj5z78S3x3IY">
-                    <span class="muted" data-page-node-id="Ivp98hrDnSzGCZlH8lBcVE">（管理员）</span>
-                  </template>
-                  <template v-else data-page-node-id="9nZYxYtOFpwtuTHNY8UfUZ">
-                    <button class="btn btn-mini" :class="u.is_active ? 'btn-warn' : 'btn-primary'" @click="toggleStatus(u)" data-page-node-id="cIAATq2sNxY7UZ9guA2i8v">
-                      {{ u.is_active ? '禁用' : '启用' }}
-                    </button>
-                    <button class="btn btn-mini btn-danger" @click="deleteUser(u)" data-page-node-id="ltzCHAcGWSdKUGMY6fHFam">删除</button>
-                  </template>
-                </td>
-              </tr>
-            </tbody>
-          </table>
-        </div>
-      </section>
     </main>
 
     <!-- ===== 登录 / 注册弹层 ===== -->

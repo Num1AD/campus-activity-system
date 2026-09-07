@@ -151,18 +151,15 @@ def list_registrations(
     user=Depends(get_current_user),
     db: sqlite3.Connection = Depends(get_db),
 ):
-    """查看活动报名名单：
-    - 教师：仅能查看自己创建的活动（REQ-04 掌握报名情况）
-    - 管理员：可查看任意活动（满足管理需求）
+    """查看活动报名名单（REQ-04：教师掌握报名情况）：
+    - 教师：仅能查看自己创建的活动
     - 学生：拒绝（学生查看自己的已报名活动由 /api/my-activities 提供）
     """
-    if user["role"] not in ("teacher", "admin"):
-        raise HTTPException(status_code=403, detail="无权查看报名名单")
+    if user["role"] != "teacher":
+        raise HTTPException(status_code=403, detail="仅教师可查看报名名单")
 
     act = _load_activity(db, activity_id)
-
-    # 教师仅看自己发布的活动（管理员看任意）
-    if user["role"] == "teacher" and act["creator_id"] != user["id"]:
+    if act["creator_id"] != user["id"]:
         raise HTTPException(status_code=403, detail="只能查看自己发布的活动")
 
     rows = db.execute(

@@ -219,65 +219,8 @@ def main():
     check("TEST-22", "REQ-04", "教师查看报名名单", "名单包含报名学生姓名",
           names, r.status_code == 200 and "小明" in names)
 
-    # ===== REQ-09 管理员账号管理 =====
-    admin_tk = login("admin", "1234567")
-
-    r = get("/api/admin/users", stu1_tk)
-    check("TEST-23", "REQ-09", "非管理员访问管理接口（越权）", "返回 403 拒绝",
-          r.json(), r.status_code == 403)
-
-    r = get("/api/admin/users", admin_tk)
-    users = r.json().get("users", [])
-    roles = {u["role"] for u in users}
-    check("TEST-24", "REQ-09", "管理员查看全部账号", "列表含 student/teacher/admin 角色",
-          roles, r.status_code == 200 and {"student", "teacher", "admin"} <= roles)
-
-    # 禁用 student02 → 登录被拒 → 启用 → 恢复登录
-    stu2_id = [u["id"] for u in users if u["username"] == "student02"][0]
-    r = requests.put(f"{BASE}/api/admin/users/{stu2_id}/status", json={"is_active": False},
-                     headers={"Authorization": f"Bearer {admin_tk}"}, timeout=5)
-    ok_disabled = r.status_code == 200
-    r = post("/api/login", {"username": "student02", "password": "123456"})
-    check("TEST-25", "REQ-09", "禁用后该账号无法登录", "返回 403 拒绝",
-          r.json(), ok_disabled and r.status_code == 403)
-    requests.put(f"{BASE}/api/admin/users/{stu2_id}/status", json={"is_active": True},
-                 headers={"Authorization": f"Bearer {admin_tk}"}, timeout=5)
-    r = post("/api/login", {"username": "student02", "password": "123456"})
-    check("TEST-26", "REQ-09", "启用后账号恢复登录", "登录成功返回 token",
-          "ok" if r.status_code == 200 else r.json(), r.status_code == 200)
-
-    # 自我保护：管理员不能禁用/删除自己（取 admin 角色账号）
-    admin_id = [u["id"] for u in users if u["role"] == "admin"][0]
-    r = requests.put(f"{BASE}/api/admin/users/{admin_id}/status", json={"is_active": False},
-                     headers={"Authorization": f"Bearer {admin_tk}"}, timeout=5)
-    check("TEST-27", "REQ-09", "管理员禁用自己（保护）", "返回 400 拒绝",
-          r.json(), r.status_code == 400)
-    r = requests.delete(f"{BASE}/api/admin/users/{admin_id}",
-                        headers={"Authorization": f"Bearer {admin_tk}"}, timeout=5)
-    check("TEST-28", "REQ-09", "管理员删除自己（保护）", "返回 400 拒绝",
-          r.json(), r.status_code == 400)
-
-    # 删除学生账号（级联清理）
-    r = requests.delete(f"{BASE}/api/admin/users/{stu2_id}",
-                        headers={"Authorization": f"Bearer {admin_tk}"}, timeout=5)
-    check("TEST-29", "REQ-09", "管理员删除学生账号", "删除成功",
-          r.json(), r.status_code == 200)
-
-    # ===== REQ-10 注册不开放管理员角色 =====
-    r = post("/api/register", {"username": "20267777", "name": "x",
-                               "password": "abc123", "role": "admin"})
-    check("TEST-30", "REQ-10", "注册 admin 角色被拒", "返回 400 拒绝",
-          r.json(), r.status_code == 400)
-
-    # ===== 体验反馈新增：教师/管理员名单查看权限（REQ-04/09 体验完善）=====
-    # TEST-31：管理员查看任意活动报名名单（不受发布人限制）
-    r = get(f"/api/activities/{new_id}/registrations", admin_tk)
-    admin_view = r.json().get("students", [])
-    check("TEST-31", "REQ-09", "管理员查看任意活动报名名单",
-          f"返回 200，含报名学生 {len(admin_view)} 人",
-          r.json(), r.status_code == 200 and len(admin_view) >= 1)
-
-    # TEST-32：教师查看他人活动报名名单（fail-closed：应 403）
+    # ===== 权限边界补充（体验期沉淀，对应 REQ-04/REQ-06）=====
+    # TEST-23：教师查看他人活动报名名单（fail-closed：应 403）
     # 注册接口不开放教师角色 → 直接插数据库构造 teacher02 + 他发布的活动
     sys.path.insert(0, str(ROOT))
     from backend.auth import hash_password
@@ -298,15 +241,12 @@ def main():
     finally:
         conn.close()
     r = get(f"/api/activities/{t2_act_id}/registrations", teacher_tk)
-    check("TEST-32", "REQ-04", "教师查看他人活动报名名单",
+    check("TEST-23", "REQ-04", "教师查看他人活动报名名单",
           "返回 403（fail-closed）", r.json(), r.status_code == 403)
 
-    # TEST-33/34：教师/管理员均不应被允许报名（活动报名是学生专属能力）
+    # TEST-24：教师不应被允许报名（活动报名是学生专属能力，UI 无入口 + 后端兜底）
     r = post(f"/api/activities/{new_id}/register", None, teacher_tk)
-    check("TEST-33", "REQ-06", "教师点击报名（活动广场UI已隐藏，后端兜底）",
-          "返回 403", r.json(), r.status_code == 403)
-    r = post(f"/api/activities/{new_id}/register", None, admin_tk)
-    check("TEST-34", "REQ-06", "管理员点击报名（活动广场UI已隐藏，后端兜底）",
+    check("TEST-24", "REQ-06", "教师报名（活动广场UI已隐藏，后端兜底）",
           "返回 403", r.json(), r.status_code == 403)
 
     # ---------- 汇总 ----------
