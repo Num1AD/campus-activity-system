@@ -63,8 +63,10 @@ def register_activity(
         raise HTTPException(status_code=400, detail=f"活动当前状态为「{status}」，无法报名")
 
     # 事务内：先检查重复与名额，再写入，保证并发安全
+    # BEGIN IMMEDIATE：立刻取写锁，避免 deferred 事务"先读后写"时两个请求
+    # 同时读到"未满"再相继写入造成超员（SQLite 的写是串行的，取锁后检查才有效）
     try:
-        db.execute("BEGIN")
+        db.execute("BEGIN IMMEDIATE")
         dup = db.execute(
             "SELECT id FROM registrations WHERE activity_id = ? AND user_id = ?",
             (activity_id, user["id"]),

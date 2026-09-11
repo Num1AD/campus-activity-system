@@ -22,7 +22,7 @@
 前置：Python 3.10+，安装依赖：
 
 ```bash
-pip install fastapi uvicorn
+pip install -r requirements.txt
 ```
 
 项目根目录执行（首次会自动建库并写入演示数据）：
@@ -52,10 +52,21 @@ backend/            FastAPI 后端
   helpers.py        活动状态/字典转换公共函数
   routers/          业务路由（users/activities/registrations）
 frontend/           Vue3 前端（index.html + app.js + style.css + vendor/ 本地依赖）
+tests/              软件验证自动化脚本（test_api.py，REQ-01~08 共 24 条用例）
 docs/               需求、工程意图、决策、设计文档
 project-data/       实验过程数据记录
-report/             实验报告工作副本
+report/             实验报告工作副本（仅本地，不提交）
 ```
+
+## 验证
+
+后端启动后，另开一个终端执行：
+
+```bash
+python tests/test_api.py
+```
+
+逐条对照 REQ-01~08 执行 24 条用例，输出通过/失败与汇总；结束后自动把数据库恢复为初始演示状态。
 
 ## 已知说明
 

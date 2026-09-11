@@ -9,9 +9,9 @@ auth.py —— 认证与安全模块
 """
 
 import hashlib
+import hmac
 import secrets
 import sqlite3
-from datetime import datetime
 
 from fastapi import Depends, Header, HTTPException
 
@@ -39,7 +39,9 @@ def verify_password(password: str, stored: str) -> bool:
         salt, digest = stored.split("$", 1)
     except ValueError:
         return False
-    return hashlib.sha256((salt + password).encode()).hexdigest() == digest
+    # 用常量时间比较，避免摘要逐字节比对带来的时序侧信道
+    expected = hashlib.sha256((salt + password).encode()).hexdigest()
+    return hmac.compare_digest(expected, digest)
 
 
 # ---------------------------------------------------------------
@@ -50,11 +52,6 @@ def create_token(user_id: int) -> str:
     token = secrets.token_hex(32)                         # 256 位随机 token
     TOKENS[token] = user_id
     return token
-
-
-def _current_time() -> str:
-    """当前时间字符串（与数据库存储格式一致）。"""
-    return datetime.now().strftime("%Y-%m-%d %H:%M")
 
 
 def get_current_user(

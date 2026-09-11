@@ -55,6 +55,9 @@ const app = createApp({
       // 发布活动弹层
       publishModal: false,
       publishForm: { title: '', description: '', location: '', start_time: '', end_time: '', capacity: 20 },
+      // 编辑活动弹层（教师，REQ-04）
+      editModal: false,
+      editForm: { id: null, title: '', description: '', location: '', start_time: '', end_time: '', capacity: 20 },
       // 报名名单弹层
       studentListModal: false,
       studentList: [],
@@ -206,11 +209,18 @@ const app = createApp({
 
     /* ---------- 教师：发布 / 取消 / 名单 ---------- */
     openPublish() {
-      // 打开发布表单，默认时间建议为 7 天后
-      const d = new Date(Date.now() + 7 * 24 * 3600 * 1000);
-      const pad = (n) => String(n).padStart(2, '0');
-      const dt = `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`;
-      this.publishForm = { title: '', description: '', location: '', start_time: dt, end_time: dt, capacity: 20 };
+      // 打开发布表单：默认开始时间为 7 天后，结束时间比开始晚 2 小时。
+      // 两者若同为默认值会被后端以"结束时间必须晚于开始时间"拒绝，故默认值必须错开。
+      const fmt = (d) => {
+        const pad = (n) => String(n).padStart(2, '0');
+        return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`;
+      };
+      const start = new Date(Date.now() + 7 * 24 * 3600 * 1000);
+      const end = new Date(start.getTime() + 2 * 3600 * 1000);
+      this.publishForm = {
+        title: '', description: '', location: '',
+        start_time: fmt(start), end_time: fmt(end), capacity: 20,
+      };
       this.publishModal = true;
     },
 
@@ -231,6 +241,45 @@ const app = createApp({
         });
         alert('发布成功');
         this.publishModal = false;
+        await this.loadMine();
+        await this.loadActivities();
+      } catch (e) {
+        alert(e.message);
+      }
+    },
+
+    /* ---------- 教师：编辑活动（REQ-04） ---------- */
+    openEdit(act) {
+      // 用活动当前值填充编辑表单；datetime-local 需要 "YYYY-MM-DDTHH:MM" 形式
+      this.editForm = {
+        id: act.id,
+        title: act.title,
+        description: act.description || '',
+        location: act.location,
+        start_time: (act.start_time || '').replace(' ', 'T'),
+        end_time: (act.end_time || '').replace(' ', 'T'),
+        capacity: act.capacity,
+      };
+      this.editModal = true;
+    },
+
+    async submitEdit() {
+      const f = this.editForm;
+      try {
+        // datetime-local 的值为 "YYYY-MM-DDTHH:MM"，转成后端格式 "YYYY-MM-DD HH:MM"
+        await api(`/api/activities/${f.id}`, {
+          method: 'PUT',
+          body: JSON.stringify({
+            title: f.title,
+            description: f.description,
+            location: f.location,
+            start_time: f.start_time.replace('T', ' '),
+            end_time: f.end_time.replace('T', ' '),
+            capacity: f.capacity,
+          }),
+        });
+        alert('修改成功');
+        this.editModal = false;
         await this.loadMine();
         await this.loadActivities();
       } catch (e) {

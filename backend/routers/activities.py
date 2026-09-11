@@ -20,7 +20,7 @@ from pydantic import BaseModel, Field
 
 from backend.auth import get_current_user
 from backend.database import get_db
-from backend.helpers import activity_to_dict, now_str
+from backend.helpers import STATUS_OPEN, activity_to_dict, calc_status, now_str
 
 router = APIRouter(prefix="/api", tags=["活动"])
 
@@ -127,13 +127,43 @@ def update_activity(
     user=Depends(get_current_user),
     db: sqlite3.Connection = Depends(get_db),
 ):
-    """教师编辑自己发布的活动（REQ-04）。仅更新传入的非空字段。"""
+    """教师编辑自己发布的活动（REQ-04）。仅更新传入的非空字段。
+
+    校验口径与发布接口保持一致（对应 REQ-04 验收标准"编辑不存在或已开始的活动被拒绝"）：
+    - 已取消、已开始（报名已截止）的活动不允许编辑；
+    - 时间须满足"结束晚于开始"且"开始晚于当前"（按修改后的最终值判断）；
+    - 人数上限不得小于当前已报名人数（否则会出现"已报名 > 容量"的矛盾状态）。
+    """
     _require_teacher(user)
     act = _get_own_activity(db, activity_id, user)
 
     # 已取消的活动不允许再编辑
     if act["is_cancelled"]:
         raise HTTPException(status_code=400, detail="已取消的活动不能编辑")
+
+    # 活动开始即报名截止，开始后不允许再修改（REQ-04 验收标准）
+    if calc_status(act["start_time"], act["is_cancelled"]) != STATUS_OPEN:
+        raise HTTPException(status_code=400, detail="活动已开始，不能再编辑")
+
+    # 时间校验：取"本次修改后的最终值"，规则与发布接口一致
+    final_start = req.start_time if req.start_time is not None else act["start_time"]
+    final_end = req.end_time if req.end_time is not None else act["end_time"]
+    if final_end <= final_start:
+        raise HTTPException(status_code=400, detail="结束时间必须晚于开始时间")
+    if final_start <= now_str():
+        raise HTTPException(status_code=400, detail="开始时间必须晚于当前时间")
+
+    # 人数上限不得小于已报名人数
+    if req.capacity is not None:
+        registered = db.execute(
+            "SELECT COUNT(*) AS n FROM registrations WHERE activity_id = ?",
+            (activity_id,),
+        ).fetchone()["n"]
+        if req.capacity < registered:
+            raise HTTPException(
+                status_code=400,
+                detail=f"人数上限不能小于已报名人数（当前已报名 {registered} 人）",
+            )
 
     # 收集需要更新的字段（动态 SQL，仅更新传入项）
     updates, params = [], []

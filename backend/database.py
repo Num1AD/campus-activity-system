@@ -65,7 +65,10 @@ CREATE INDEX IF NOT EXISTS idx_act_creator  ON activities(creator_id);
 
 def get_connection() -> sqlite3.Connection:
     """创建新的数据库连接（每个请求用独立连接，避免多线程共用冲突）。"""
-    conn = sqlite3.connect(DB_PATH)
+    # check_same_thread=False：FastAPI 的同步依赖在线程池中执行，
+    # 依赖的收尾（yield 之后）不保证与创建时同一线程；每个请求各自持有独立连接，
+    # 不存在跨线程共用，因此关闭线程检查是安全的。
+    conn = sqlite3.connect(DB_PATH, check_same_thread=False)
     conn.row_factory = sqlite3.Row          # 行按字段名访问，方便转 dict
     conn.execute("PRAGMA foreign_keys = ON")  # 开启外键约束
     return conn
