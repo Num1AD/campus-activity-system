@@ -13,16 +13,42 @@ routers/activities.py —— 活动模块接口（REQ-03 发布 / REQ-04 管理 
 - 写操作要求登录且角色为 teacher，且只能操作 creator_id = 自己的活动
 """
 
+import re
 import sqlite3
+from datetime import datetime
 
 from fastapi import APIRouter, Depends, HTTPException
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, field_validator
 
 from backend.auth import get_current_user
 from backend.database import get_db
-from backend.helpers import STATUS_OPEN, activity_to_dict, calc_status, now_str
+from backend.helpers import FMT, STATUS_OPEN, activity_to_dict, calc_status, now_str
 
 router = APIRouter(prefix="/api", tags=["活动"])
+
+
+# ---------------------------------------------------------------
+# 时间字段校验
+# ---------------------------------------------------------------
+TIME_PATTERN = re.compile(r"^\d{4}-\d{2}-\d{2} \d{2}:\d{2}$")
+
+
+def _validate_time_format(value: str) -> str:
+    """
+    校验时间字符串必须严格是 "YYYY-MM-DD HH:MM"（零填充、固定长度）。
+
+    两道校验各有分工：正则保证书写格式统一（避免 "9:30" 与 "09:30" 混存，
+    破坏字符串排序与展示一致性）；strptime 保证日期真实存在（挡住 2026-13-45）。
+    缺失校验的后果：非法值会被字符串比较放行入库，而 calc_status 的 strptime
+    解析失败后保守返回"已截止"，导致未来活动被误判为已截止、学生无法报名。
+    """
+    if not TIME_PATTERN.match(value):
+        raise ValueError(f"时间格式必须为 YYYY-MM-DD HH:MM（收到：{value}）")
+    try:
+        datetime.strptime(value, FMT)
+    except ValueError:
+        raise ValueError(f"时间不是有效日期（收到：{value}）")
+    return value
 
 
 # ---------------------------------------------------------------
@@ -37,6 +63,11 @@ class ActivityCreate(BaseModel):
     end_time: str = Field(description="活动结束时间 YYYY-MM-DD HH:MM")
     capacity: int = Field(gt=0, le=10000, description="人数上限")
 
+    @field_validator("start_time", "end_time")
+    @classmethod
+    def check_time_format(cls, v: str) -> str:
+        return _validate_time_format(v)
+
 
 class ActivityUpdate(BaseModel):
     """编辑活动请求：所有字段可选，只更新传入项。"""
@@ -46,6 +77,11 @@ class ActivityUpdate(BaseModel):
     start_time: str | None = None
     end_time: str | None = None
     capacity: int | None = Field(default=None, gt=0, le=10000)
+
+    @field_validator("start_time", "end_time")
+    @classmethod
+    def check_time_format(cls, v: str | None) -> str | None:
+        return _validate_time_format(v) if v is not None else v
 
 
 # ---------------------------------------------------------------

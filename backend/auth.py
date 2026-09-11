@@ -54,6 +54,16 @@ def create_token(user_id: int) -> str:
     return token
 
 
+def revoke_token(token: str) -> None:
+    """
+    注销 token：从服务端表中删除，使其立即失效。
+
+    登出必须走这里，只清浏览器端的 token 不算真正退出——
+    服务端仍认旧 token 的话，被窃取的凭证依旧可以用来冒充该用户。
+    """
+    TOKENS.pop(token, None)
+
+
 def get_current_user(
     authorization: str = Header(default=""),
     db: sqlite3.Connection = Depends(get_db),

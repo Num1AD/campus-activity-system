@@ -4,15 +4,22 @@ routers/users.py —— 用户模块接口（REQ-01 注册 / REQ-02 登录）
 接口：
 - POST /api/register  注册（学号/工号 + 姓名 + 密码 + 角色）
 - POST /api/login     登录（返回 token 与用户信息）
+- POST /api/logout    退出登录（注销服务端持有的 token）
 - GET  /api/me        查询当前登录用户
 """
 
 import sqlite3
 
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends, Header, HTTPException
 from pydantic import BaseModel, Field
 
-from backend.auth import create_token, get_current_user, hash_password, verify_password
+from backend.auth import (
+    create_token,
+    get_current_user,
+    hash_password,
+    revoke_token,
+    verify_password,
+)
 from backend.database import get_db
 
 router = APIRouter(prefix="/api", tags=["用户"])
@@ -88,3 +95,15 @@ def login(req: LoginRequest, db: sqlite3.Connection = Depends(get_db)):
 def me(user: sqlite3.Row = Depends(get_current_user)):
     """返回当前登录用户信息（依赖 get_current_user 完成 token 校验）。"""
     return user_dict(user)
+
+
+@router.post("/logout", summary="退出登录")
+def logout(authorization: str = Header(default="")):
+    """
+    退出登录：把本次使用的 token 从服务端注销，使其立即失效。
+
+    设计为幂等——token 缺失或已失效时同样返回成功，调用方无需区分处理；
+    前端在收到结果后清除本地保存的 token。
+    """
+    revoke_token(authorization.removeprefix("Bearer ").strip())
+    return {"message": "已退出登录"}

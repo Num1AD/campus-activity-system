@@ -7,7 +7,8 @@
  * 3. 活动广场：浏览活动、报名 / 取消报名
  * 4. 我的活动：学生查看已报名；教师发布 / 取消活动 / 查看报名名单
  *
- * 认证方案（与后端一致）：登录返回 token，存入 localStorage（键 cas_token）。
+ * 认证方案（与后端一致）：登录返回 token，存入 localStorage（键 cas_token）；
+ * 退出登录会先调用 /api/logout 让服务端注销该 token，再清除本地记录。
  */
 
 // Vue 全局对象来自 index.html 引入的 CDN
@@ -101,8 +102,10 @@ const app = createApp({
         this.user = await api('/api/me');
         await this.loadActivities();
       } catch {
-        // token 失效则清除
-        this.logout();
+        // token 已失效：直接清理本地状态（无需再请求注销接口）
+        localStorage.removeItem('cas_token');
+        this.user = null;
+        this.view = 'list';
       }
     },
 
@@ -137,7 +140,13 @@ const app = createApp({
       }
     },
 
-    logout() {
+    async logout() {
+      // 先通知服务端注销 token；失败也不阻塞本地清理，避免出现"退不出去"
+      try {
+        await api('/api/logout', { method: 'POST' });
+      } catch {
+        // 网络异常或 token 已失效：忽略，继续清理本地状态
+      }
       localStorage.removeItem('cas_token');
       this.user = null;
       this.view = 'list';
