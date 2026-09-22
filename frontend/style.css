@@ -1,6 +1,7 @@
 /*
- * style.css —— 校园活动管理系统 V1.0 前端样式
+ * style.css —— 校园活动管理系统 V2.0 前端样式
  * 简洁卡片风格，状态用颜色区分（绿=报名中、灰=已截止、红=已取消）
+ * V2.0 新增：报名状态标签（待审核 / 正式参加 / 候补中）、需审核标记、账号管理表格
  */
 
 /* ---------- 基础 ---------- */
@@ -150,3 +151,56 @@ body {
 
 /* ---------- 页脚 ---------- */
 .footer { text-align: center; color: #9ca3af; font-size: 12px; padding: 20px; }
+
+/* ===========================================================
+ * V2.0 新增样式（报名状态、审核、账号管理）
+ * =========================================================== */
+
+/* ---------- 管理员角色徽章 ---------- */
+.role-admin { background: #ede9fe; color: #6d28d9; }
+
+/* ---------- 小标签（报名状态 / 需审核 / 账号状态） ---------- */
+.mini-tag {
+  display: inline-block; font-size: 12px; padding: 2px 8px; border-radius: 10px;
+  background: #e5e7eb; color: #4b5563; white-space: nowrap;
+}
+/* 报名状态三态：待审核=琥珀、正式参加=绿、候补中=蓝（与第八章状态口径一致） */
+.reg-pending    { background: #fef3c7; color: #92400e; }
+.reg-confirmed  { background: #dcfce7; color: #15803d; }
+.reg-waitlisted { background: #dbeafe; color: #1d4ed8; }
+.tag-review     { background: #fef3c7; color: #92400e; }
+.tag-active     { background: #dcfce7; color: #15803d; }
+.tag-disabled   { background: #fee2e2; color: #b91c1c; }
+
+/* ---------- 卡片补充信息 ---------- */
+.act-eligibility {
+  font-size: 12px; color: #6b7280; margin-top: 4px;
+  padding: 4px 8px; background: #f9fafb; border-radius: 6px;
+}
+.meta-wait    { color: #1d4ed8; }
+.meta-pending { color: #92400e; }
+
+/* ---------- 小尺寸按钮 ---------- */
+.btn-sm { padding: 4px 12px; font-size: 13px; }
+
+/* ---------- 弹层：宽版与分组标题 ---------- */
+.modal-wide { width: 620px; max-width: 94vw; max-height: 84vh; overflow-y: auto; }
+.group-title {
+  font-size: 14px; color: #374151; margin: 16px 0 6px;
+  padding-left: 8px; border-left: 3px solid #1d4ed8;
+}
+.group-title:first-of-type { margin-top: 10px; }
+.op-cell { white-space: nowrap; }
+.op-cell .btn + .btn { margin-left: 6px; }
+
+/* ---------- 表单：复选框行 ---------- */
+.check-line {
+  flex-direction: row !important; align-items: center; gap: 8px !important;
+  font-size: 13px; color: #374151; cursor: pointer;
+}
+.check-line input[type="checkbox"] { width: auto; }
+
+/* ---------- 账号管理表格 ---------- */
+.admin-table { background: #fff; border-radius: 12px; overflow: hidden; box-shadow: 0 1px 4px rgba(0,0,0,.06); }
+.admin-table .row-disabled td { opacity: .55; }
+.admin-table .role-badge { font-style: normal; }

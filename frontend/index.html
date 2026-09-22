@@ -3,9 +3,9 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>校园活动管理系统 V1.0</title>
+  <title>校园活动管理系统 V2.0</title>
   <!-- 样式表 -->
-  <link rel="stylesheet" href="style.css?v=20260911">
+  <link rel="stylesheet" href="style.css?v=20260922">
 </head>
 <body>
   <!-- Vue 应用挂载点 -->
@@ -19,9 +19,13 @@
         </div>
         <nav class="nav">
           <button class="nav-btn" :class="{active: view==='list'}" @click="switchView('list')">活动广场</button>
-          <button v-if="user" class="nav-btn" :class="{active: view==='mine'}" @click="switchView('mine')">
+          <button v-if="user && user.role !== 'admin'" class="nav-btn"
+                  :class="{active: view==='mine'}" @click="switchView('mine')">
             {{ user.role === 'teacher' ? '我的活动(管理)' : '我的活动' }}
           </button>
+          <!-- 管理员：账号管理（平台侧职责，不参与活动业务） -->
+          <button v-if="user && user.role === 'admin'" class="nav-btn"
+                  :class="{active: view==='admin'}" @click="switchView('admin')">账号管理</button>
         </nav>
         <div class="user-area">
           <!-- 已登录：显示姓名与角色 + 退出 -->
@@ -55,26 +59,27 @@
           <div v-for="act in activities" :key="act.id" class="act-card" :class="'status-'+act.status">
             <div class="act-head">
               <span class="status-tag" :class="'st-'+act.status">{{ act.status }}</span>
+              <span v-if="act.require_review" class="mini-tag tag-review">需审核</span>
               <span class="muted">{{ act.location }}</span>
             </div>
             <p class="act-creator">👤 发布教师：{{ act.creator_name }}</p>
             <h3 class="act-title">{{ act.title }}</h3>
             <p class="act-desc">{{ act.description || '暂无活动描述' }}</p>
+            <p v-if="act.eligibility" class="act-eligibility">参加资格：{{ act.eligibility }}</p>
             <div class="act-meta">
               <span>🕐 {{ act.start_time }}</span>
               <span>人数 {{ act.registered }}/{{ act.capacity }}</span>
+              <span v-if="act.waitlisted" class="meta-wait">候补 {{ act.waitlisted }}</span>
             </div>
             <div class="act-foot">
-              <!-- 学生：报名 / 取消报名 / 不可报名 -->
+              <!-- 学生 / 未登录：报名或按本人报名状态撤回、退出候补、取消报名 -->
               <template v-if="!user || user.role==='student'">
                 <button
                   class="btn"
-                  :class="regState(act) === 'registered' ? 'btn-danger' : 'btn-primary'"
-                  :disabled="!user || act.status !== '报名中'"
+                  :class="myReg(act) ? 'btn-danger' : 'btn-primary'"
+                  :disabled="regBtnDisabled(act)"
                   @click="handleRegister(act)">
-                  {{ !user ? '登录后报名' :
-                       (regState(act) === 'registered' ? '取消报名'
-                       : (act.status === '报名中' ? '报名' : '不可报名')) }}
+                  {{ regBtnText(act) }}
                 </button>
               </template>
               <!-- 教师：仅看自己发布活动的名单；活动广场不提供报名入口 -->
@@ -83,6 +88,10 @@
                   报名名单({{ act.registered }})
                 </button>
                 <span v-else class="muted">（其他教师的活动）</span>
+              </template>
+              <!-- 管理员：不参与报名业务，仅查看 -->
+              <template v-else>
+                <span class="muted">（平台管理员不参与报名）</span>
               </template>
             </div>
           </div>
@@ -103,19 +112,27 @@
           <div v-for="act in mineActivities" :key="act.id" class="act-card" :class="'status-'+act.status">
             <div class="act-head">
               <span class="status-tag" :class="'st-'+act.status">{{ act.status }}</span>
+              <span v-if="act.require_review" class="mini-tag tag-review">需审核</span>
               <span class="muted">{{ act.location }}</span>
             </div>
             <p class="act-creator">👤 发布教师：{{ act.creator_name }}</p>
             <h3 class="act-title">{{ act.title }}</h3>
             <p class="act-desc">{{ act.description || '暂无活动描述' }}</p>
+            <p v-if="act.eligibility" class="act-eligibility">参加资格：{{ act.eligibility }}</p>
             <div class="act-meta">
               <span>🕐 {{ act.start_time }}</span>
               <span>人数 {{ act.registered }}/{{ act.capacity }}</span>
+              <!-- 教师视角：候补与待审核人数（US-03 区分正式与候补） -->
+              <span v-if="user.role==='teacher' && act.waitlisted" class="meta-wait">候补 {{ act.waitlisted }}</span>
+              <span v-if="user.role==='teacher' && act.pending_review" class="meta-pending">待审核 {{ act.pending_review }}</span>
             </div>
             <div class="act-foot">
-              <!-- 学生：取消报名 -->
+              <!-- 学生：本人报名状态 + 撤回申请 / 退出候补 / 取消报名 -->
               <template v-if="user.role==='student'">
-                <button class="btn btn-danger" @click="unregister(act)">取消报名</button>
+                <span v-if="myReg(act)" class="mini-tag" :class="'reg-'+myReg(act).code">
+                  {{ myReg(act).text }}
+                </span>
+                <button class="btn btn-danger" @click="unregister(act)">{{ regBtnText(act) }}</button>
               </template>
               <!-- 教师：查看名单 / 编辑 / 取消活动 -->
               <template v-else>
@@ -127,6 +144,41 @@
             </div>
           </div>
         </div>
+      </section>
+
+      <!-- ===== 视图三：账号管理（系统管理员） ===== -->
+      <section v-if="view==='admin'" class="page">
+        <div class="page-head">
+          <h2>账号管理</h2>
+          <p class="muted">
+            共 {{ adminSummary.total }} 个账号<span v-if="adminSummary.disabled">，其中 {{ adminSummary.disabled }} 个已停用</span>
+          </p>
+        </div>
+        <p class="muted">平台管理员只维护账号状态，不介入具体活动组织与报名业务。</p>
+        <table class="plain-table admin-table">
+          <thead>
+            <tr><th>学号/工号</th><th>姓名</th><th>角色</th><th>状态</th><th>操作</th></tr>
+          </thead>
+          <tbody>
+            <tr v-for="u in adminUsers" :key="u.id" :class="{ 'row-disabled': !u.is_active }">
+              <td>{{ u.username }}</td>
+              <td>{{ u.name }}</td>
+              <td><em class="role-badge" :class="'role-' + u.role">{{ roleText(u.role) }}</em></td>
+              <td>
+                <span class="mini-tag" :class="u.is_active ? 'tag-active' : 'tag-disabled'">
+                  {{ u.is_active ? '可用' : '已停用' }}
+                </span>
+              </td>
+              <td>
+                <!-- 不能停用当前登录的管理员自己，与后端校验一致 -->
+                <button v-if="u.is_active" class="btn btn-danger btn-sm"
+                        :disabled="u.id === user.id"
+                        @click="toggleUser(u)">停用</button>
+                <button v-else class="btn btn-ghost btn-sm" @click="toggleUser(u)">恢复</button>
+              </td>
+            </tr>
+          </tbody>
+        </table>
       </section>
 
     </main>
@@ -176,6 +228,13 @@
             <label>结束时间<input type="datetime-local" v-model="publishForm.end_time" required></label>
           </div>
           <label>人数上限<input type="number" v-model.number="publishForm.capacity" required min="1" max="10000"></label>
+          <!-- V2.0：是否审核由教师按活动决定（R-06） -->
+          <label class="check-line">
+            <input type="checkbox" v-model="publishForm.require_review">
+            报名需要审核（勾选后学生报名将先进入待审核，由你确认）
+          </label>
+          <label>参加资格<textarea v-model="publishForm.eligibility" rows="2" maxlength="500"
+                  placeholder="如：仅限本学院学生（可选，会展示给学生）"></textarea></label>
           <button class="btn btn-primary btn-block" type="submit">发布</button>
         </form>
         <button class="modal-close" @click="publishModal=false">×</button>
@@ -195,7 +254,13 @@
             <label>结束时间<input type="datetime-local" v-model="editForm.end_time" required></label>
           </div>
           <label>人数上限<input type="number" v-model.number="editForm.capacity" required min="1" max="10000"></label>
-          <p class="muted center">活动开始后不可编辑；人数上限不能小于已报名人数</p>
+          <label class="check-line">
+            <input type="checkbox" v-model="editForm.require_review">
+            报名需要审核
+          </label>
+          <label>参加资格<textarea v-model="editForm.eligibility" rows="2" maxlength="500"
+                  placeholder="如：仅限本学院学生（可选）"></textarea></label>
+          <p class="muted center">活动开始后不可编辑；人数上限不能小于正式参加人数</p>
           <button class="btn btn-primary btn-block" type="submit">保存修改</button>
         </form>
         <button class="modal-close" @click="editModal=false">×</button>
@@ -204,25 +269,71 @@
 
     <!-- ===== 报名名单弹层（教师） ===== -->
     <div v-if="studentListModal" class="modal-mask" @click.self="studentListModal=false">
-      <div class="modal">
+      <div class="modal modal-wide">
         <h3>{{ currentAct.title }} · 报名名单</h3>
-        <table v-if="studentList.length" class="plain-table">
-          <thead><tr><th>学号/工号</th><th>姓名</th></tr></thead>
-          <tbody>
-            <tr v-for="s in studentList" :key="s.id"><td>{{ s.username }}</td><td>{{ s.name }}</td></tr>
-          </tbody>
-        </table>
-        <p v-else class="muted">还没有人报名</p>
+        <p class="muted">
+          正式参加 {{ confirmedList.length }} / 上限 {{ currentAct.capacity }}
+          <span v-if="waitlistedList.length">　候补中 {{ waitlistedList.length }}</span>
+          <span v-if="pendingList.length">　待审核 {{ pendingList.length }}</span>
+        </p>
+
+        <!-- 待审核：可逐条通过或拒绝（R-06 / R-07） -->
+        <template v-if="pendingList.length">
+          <h4 class="group-title">待审核（{{ pendingList.length }}）</h4>
+          <table class="plain-table">
+            <thead><tr><th>学号/工号</th><th>姓名</th><th>操作</th></tr></thead>
+            <tbody>
+              <tr v-for="s in pendingList" :key="s.id">
+                <td>{{ s.username }}</td>
+                <td>{{ s.name }}</td>
+                <td class="op-cell">
+                  <button class="btn btn-primary btn-sm" @click="review(s, true)">通过</button>
+                  <button class="btn btn-danger btn-sm" @click="review(s, false)">拒绝</button>
+                </td>
+              </tr>
+            </tbody>
+          </table>
+          <p class="muted">通过后按当时的剩余名额确定正式参加或进入候补；拒绝的报名将不能参加本活动。</p>
+        </template>
+
+        <!-- 正式参加 -->
+        <template v-if="confirmedList.length">
+          <h4 class="group-title">正式参加（{{ confirmedList.length }}）</h4>
+          <table class="plain-table">
+            <thead><tr><th>学号/工号</th><th>姓名</th></tr></thead>
+            <tbody>
+              <tr v-for="s in confirmedList" :key="s.id"><td>{{ s.username }}</td><td>{{ s.name }}</td></tr>
+            </tbody>
+          </table>
+        </template>
+
+        <!-- 候补中：按进入候补时间排序 -->
+        <template v-if="waitlistedList.length">
+          <h4 class="group-title">候补中（{{ waitlistedList.length }}）· 按进入候补时间排序</h4>
+          <table class="plain-table">
+            <thead><tr><th>顺序</th><th>学号/工号</th><th>姓名</th><th>进入候补时间</th></tr></thead>
+            <tbody>
+              <tr v-for="(s, i) in waitlistedList" :key="s.id">
+                <td>{{ i + 1 }}</td>
+                <td>{{ s.username }}</td>
+                <td>{{ s.name }}</td>
+                <td>{{ s.queued_at || '—' }}</td>
+              </tr>
+            </tbody>
+          </table>
+        </template>
+
+        <p v-if="!studentList.length" class="muted">还没有人报名</p>
         <button class="modal-close" @click="studentListModal=false">×</button>
       </div>
     </div>
 
-    <footer class="footer">校园活动管理系统 V1.0 · 软件工程实验一</footer>
+    <footer class="footer">校园活动管理系统 V2.0 · 软件工程实验二</footer>
   </div>
 
   <!-- Vue 3（本地 vendor，避免 CDN 网络依赖） -->
   <script src="vendor/vue.global.prod.js"></script>
   <!-- 应用逻辑 -->
-  <script src="app.js?v=20260911b"></script>
+  <script src="app.js?v=20260922"></script>
 </body>
 </html>
