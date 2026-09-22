@@ -78,12 +78,10 @@ t11 = d.tables[10]
 chk("第十章测试表仍为 10 行（含 TEST-37）", len(t11.rows) == 10, f"{len(t11.rows)} 行")
 
 print()
-print("【6】第十二章仍为空（本轮不涉及）")
-i12 = texts.index("十二、V2.0结果与反思")
-i13 = texts.index("十三、组员确认")
-seg = [x for x in texts[i12 + 1:i13] if x and not x.startswith(("1.", "2.", "3.", "4."))]
-chk("第十二章仍无回答内容（待填）", len(seg) == 0,
-    f"非问题段落 {seg[:2]}" if seg else "")
+print("【6】章节顺序（十二章的状态由 _verify_report_ch12.py 负责）")
+chk("十 < 十一 < 十二 < 十三 顺序正确",
+    texts.index("十、测试与验证") < texts.index("十一、AI使用记录与人工确认")
+    < texts.index("十二、V2.0结果与反思") < texts.index("十三、组员确认"))
 
 print()
 print("=" * 62)
