@@ -1,14 +1,19 @@
 """
 tests/test_api.py —— 阶段⑤软件验证自动化脚本
 
-按 REQ-01~08 逐条设计 TEST 用例并执行，输出 PASS/FAIL 结果。
-验证口径：对应需求 + 关键业务规则与异常场景（不止"能启动"）。
+按 REQ-01~08（V1.0）与 R-01~R-08（V2.0 新增）逐条设计 TEST 用例并执行，
+输出 PASS/FAIL 结果。验证口径：对应需求 + 关键业务规则与异常场景（不止"能启动"）。
+
+用例分布：
+- TEST-01~24：V1.0 需求 REQ-01~REQ-08（其中 TEST-19 已按 V2.0 新规则调整：
+  满员后报名不再被拒，改为进入候补队列）
+- TEST-25~36：V2.0 新增需求 R-01~R-08（候补机制、报名审核、管理员账号管理）
 
 运行方式（后端已启动在 127.0.0.1:8000）：
     python tests/test_api.py
 
 测试数据策略：
-- 复用演示账号（teacher01/student01/student02，密码 123456）
+- 复用演示账号（teacher01/student01/student02/admin01，密码 123456）
 - 注册一个临时学生账号验证注册流程
 - 满员/已截止场景：临时创建容量 1 的活动 / 直接向库插入已过期的活动
 - 测试结束后恢复数据库为初始演示状态（保证演示数据干净）
@@ -193,13 +198,14 @@ def main():
     check("TEST-18", "REQ-07", "学生我的活动列表", "包含刚报名的活动",
           [a["title"] for a in mine1], r.status_code == 200 and any(a["id"] == new_id for a in mine1))
 
-    # ===== REQ-08 名额与状态约束 =====
-    # 满员：发一个容量 1 的活动，两个学生报名，第二个应被拒
+    # ===== REQ-08 / R-01 名额与状态约束 =====
+    # 满员（V2.0 规则变化）：发一个容量 1 的活动，两个学生报名。
+    # 第二个不再被直接拒绝，而是进入候补队列 —— 对应报告 R-01 与第八章规则 1。
     small = post("/api/activities", {**payload, "title": "容量1验证活动", "capacity": 1}, teacher_tk).json()["activity_id"]
     post(f"/api/activities/{small}/register", None, stu1_tk)
     r = post(f"/api/activities/{small}/register", None, stu2_tk)
-    check("TEST-19", "REQ-08", "名额满后报名", "返回 400 拒绝（报名人数已满）",
-          r.json(), r.status_code == 400)
+    check("TEST-19", "R-01", "名额满后报名", "进入候补队列（不再直接拒绝）",
+          r.json(), r.status_code == 200 and r.json().get("reg_status") == "候补中")
 
     # 已取消活动不可报名
     post(f"/api/activities/{small}/cancel", None, teacher_tk)
@@ -248,6 +254,106 @@ def main():
     r = post(f"/api/activities/{new_id}/register", None, teacher_tk)
     check("TEST-24", "REQ-06", "教师报名（活动广场UI已隐藏，后端兜底）",
           "返回 403", r.json(), r.status_code == 403)
+
+    # ===========================================================
+    # ===== V2.0 新增需求（R-01~R-08）=====
+    # 对应报告第四章 R-01~R-08、第六章 US-01~US-08
+    # ===========================================================
+    admin_tk = login("admin01")
+    stu3_tk = login("20269999", "abc123")           # TEST-01 注册的临时学生
+    t2_tk = login("teacher02")                      # TEST-23 构造的第二个教师
+
+    def delete(path, token):
+        """DELETE 请求封装。"""
+        return requests.delete(BASE + path,
+                               headers={"Authorization": f"Bearer {token}"}, timeout=5)
+
+    # ----- R-01 / R-02：候补入队与排序 -----
+    cap1 = post("/api/activities",
+                {**payload, "title": "V2候补排序验证", "capacity": 1},
+                teacher_tk).json()["activity_id"]
+    post(f"/api/activities/{cap1}/register", None, stu1_tk)          # 第 1 人 → 正式参加
+    r1 = post(f"/api/activities/{cap1}/register", None, stu2_tk)     # 第 2 人 → 候补
+    r2 = post(f"/api/activities/{cap1}/register", None, stu3_tk)     # 第 3 人 → 候补
+    check("TEST-25", "R-01", "满员后报名进入候补队列", "两人均为「候补中」而非被拒绝",
+          [r1.json().get("reg_status"), r2.json().get("reg_status")],
+          r1.json().get("reg_status") == "候补中" and r2.json().get("reg_status") == "候补中")
+
+    r = get(f"/api/activities/{cap1}/registrations", teacher_tk)
+    wait_order = [s["name"] for s in r.json().get("students", [])
+                  if s["reg_status"] == "waitlisted"]
+    check("TEST-26", "R-02", "候补按进入候补时间排序", "先入队的「小红」排在「验证学生」之前",
+          wait_order, wait_order == ["小红", "验证学生"])
+
+    # ----- R-04：正式取消触发递补 -----
+    r = delete(f"/api/activities/{cap1}/register", stu1_tk)
+    r = get(f"/api/activities/{cap1}/registrations", teacher_tk)
+    after = {s["name"]: s["reg_status_text"] for s in r.json().get("students", [])}
+    check("TEST-27", "R-04", "取消正式报名后队首候补自动递补",
+          "「小红」转为正式参加",
+          after, after.get("小红") == "正式参加")
+
+    # ----- R-05：候补退出 -----
+    delete(f"/api/activities/{cap1}/register", stu3_tk)
+    r = get(f"/api/activities/{cap1}/registrations", teacher_tk)
+    d = r.json()
+    check("TEST-28", "R-05", "候补主动退出", "正式人数不变、候补队列减少一人",
+          {"正式": d.get("confirmed_count"), "候补": d.get("waitlisted_count")},
+          d.get("confirmed_count") == 1 and d.get("waitlisted_count") == 0)
+
+    # ----- R-06 / R-07：报名审核与参加资格 -----
+    rev_id = post("/api/activities",
+                  {**payload, "title": "V2审核流程验证", "capacity": 1,
+                   "require_review": True, "eligibility": "仅限已完成报到的学生"},
+                  teacher_tk).json()["activity_id"]
+    r = get(f"/api/activities/{rev_id}")
+    check("TEST-29", "R-06", "发布时设置是否需要审核与参加资格",
+          "require_review=True 且资格条件已保存",
+          {"require_review": r.json().get("require_review"), "eligibility": r.json().get("eligibility")},
+          r.json().get("require_review") is True
+          and r.json().get("eligibility") == "仅限已完成报到的学生")
+
+    r = post(f"/api/activities/{rev_id}/register", None, stu1_tk)
+    d = get(f"/api/activities/{rev_id}").json()
+    check("TEST-30", "R-06", "需审核活动报名进入待审核",
+          "状态为待审核，且不占用正式名额（registered=0）",
+          {"reg_status": r.json().get("reg_status"), "registered": d.get("registered")},
+          r.json().get("reg_status") == "待审核" and d.get("registered") == 0)
+
+    sid1 = get("/api/me", stu1_tk).json()["id"]
+    sid2 = get("/api/me", stu2_tk).json()["id"]
+    r = post(f"/api/activities/{rev_id}/registrations/{sid1}/review",
+             {"approve": True}, teacher_tk)
+    check("TEST-31", "R-07", "审核通过且有余位", "转为正式参加",
+          r.json(), r.json().get("reg_status") == "正式参加")
+
+    post(f"/api/activities/{rev_id}/register", None, stu2_tk)
+    r = post(f"/api/activities/{rev_id}/registrations/{sid2}/review",
+             {"approve": True}, teacher_tk)
+    check("TEST-32", "R-07", "审核通过但名额已满", "先确认资格、再看名额 → 进入候补",
+          r.json(), r.json().get("reg_status") == "候补中")
+
+    # 审核权限：其他教师不可审核本人活动收到的报名
+    r = post(f"/api/activities/{rev_id}/registrations/{sid1}/review",
+             {"approve": True}, t2_tk)
+    check("TEST-33", "R-06", "其他教师审核他人活动的报名",
+          "返回 403（fail-closed）", r.json(), r.status_code == 403)
+
+    # ----- R-08：管理员账号管理 -----
+    r = get("/api/admin/users", admin_tk)
+    roles = {u["role"] for u in r.json().get("users", [])}
+    check("TEST-34", "R-08", "管理员查看平台账号", "含 student/teacher/admin 三种角色",
+          sorted(roles), r.status_code == 200 and {"student", "teacher", "admin"} <= roles)
+
+    r = get("/api/admin/users", teacher_tk)
+    check("TEST-35", "R-08", "教师访问管理员接口", "返回 403（fail-closed）",
+          r.json(), r.status_code == 403)
+
+    post(f"/api/admin/users/{sid2}/status", {"is_active": False}, admin_tk)
+    r = post("/api/login", {"username": "student02", "password": "123456"})
+    check("TEST-36", "R-08", "停用账号后不能登录", "返回 403 拒绝",
+          r.json(), r.status_code == 403)
+    post(f"/api/admin/users/{sid2}/status", {"is_active": True}, admin_tk)
 
     # ---------- 汇总 ----------
     print("\n" + "=" * 60)
