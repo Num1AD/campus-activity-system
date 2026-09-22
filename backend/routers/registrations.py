@@ -238,8 +238,10 @@ def my_activities(
         return {"activities": result}
 
     if user["role"] == "teacher":
+        # 排序与活动广场保持一致（按开始时间升序），否则教师切换两个视图时
+        # 同一批活动顺序不同，看起来混乱
         rows = db.execute(
-            "SELECT * FROM activities WHERE creator_id = ? ORDER BY created_at DESC",
+            "SELECT * FROM activities WHERE creator_id = ? ORDER BY start_time",
             (user["id"],),
         ).fetchall()
         return {"activities": [activity_to_dict(db, r) for r in rows]}
