@@ -5,7 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>校园活动管理系统 V2.0</title>
   <!-- 样式表 -->
-  <link rel="stylesheet" href="style.css?v=20260922c">
+  <link rel="stylesheet" href="style.css?v=20260922d">
 </head>
 <body>
   <!-- Vue 应用挂载点 -->
@@ -89,9 +89,11 @@
                 </button>
                 <span v-else class="muted">（其他教师的活动）</span>
               </template>
-              <!-- 管理员：不参与报名业务，仅查看 -->
+              <!-- 管理员：不参与报名业务，可只读查看名单用于监督（第八章设计约定） -->
               <template v-else>
-                <span class="muted">（平台管理员不参与报名）</span>
+                <button class="btn btn-ghost" @click="viewStudents(act)">
+                  报名名单({{ act.registered }})
+                </button>
               </template>
             </div>
           </div>
@@ -267,33 +269,39 @@
       </div>
     </div>
 
-    <!-- ===== 报名名单弹层（教师） ===== -->
+    <!-- ===== 报名名单弹层（教师可处理审核；管理员只读查看） ===== -->
     <div v-if="studentListModal" class="modal-mask" @click.self="studentListModal=false">
       <div class="modal modal-wide">
-        <h3>{{ currentAct.title }} · 报名名单</h3>
+        <h3>{{ currentAct.title }} · 报名名单<span v-if="studentListReadonly">（只读）</span></h3>
         <p class="muted">
           正式参加 {{ confirmedList.length }} / 上限 {{ currentAct.capacity }}
           <span v-if="waitlistedList.length">　候补中 {{ waitlistedList.length }}</span>
           <span v-if="pendingList.length">　待审核 {{ pendingList.length }}</span>
         </p>
 
-        <!-- 待审核：可逐条通过或拒绝（R-06 / R-07） -->
+        <!-- 待审核：教师可逐条通过或拒绝（R-06 / R-07）；管理员只读，不显示操作 -->
         <template v-if="pendingList.length">
           <h4 class="group-title">待审核（{{ pendingList.length }}）</h4>
           <table class="plain-table">
-            <thead><tr><th>学号/工号</th><th>姓名</th><th>操作</th></tr></thead>
+            <thead>
+              <tr>
+                <th>学号/工号</th><th>姓名</th>
+                <th v-if="!studentListReadonly">操作</th>
+              </tr>
+            </thead>
             <tbody>
               <tr v-for="s in pendingList" :key="s.id">
                 <td>{{ s.username }}</td>
                 <td>{{ s.name }}</td>
-                <td class="op-cell">
+                <td v-if="!studentListReadonly" class="op-cell">
                   <button class="btn btn-primary btn-sm" @click="review(s, true)">通过</button>
                   <button class="btn btn-danger btn-sm" @click="review(s, false)">拒绝</button>
                 </td>
               </tr>
             </tbody>
           </table>
-          <p class="muted">通过后按当时的剩余名额确定正式参加或进入候补；拒绝的报名将不能参加本活动。</p>
+          <p v-if="studentListReadonly" class="muted">审核由组织该活动的教师处理，管理员仅查看。</p>
+          <p v-else class="muted">通过后按当时的剩余名额确定正式参加或进入候补；拒绝的报名将不能参加本活动。</p>
         </template>
 
         <!-- 正式参加 -->
@@ -334,6 +342,6 @@
   <!-- Vue 3（本地 vendor，避免 CDN 网络依赖） -->
   <script src="vendor/vue.global.prod.js"></script>
   <!-- 应用逻辑 -->
-  <script src="app.js?v=20260922"></script>
+  <script src="app.js?v=20260922d"></script>
 </body>
 </html>

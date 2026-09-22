@@ -72,9 +72,10 @@ const app = createApp({
         id: null, title: '', description: '', location: '', start_time: '', end_time: '', capacity: 20,
         require_review: false, eligibility: '',
       },
-      // 报名名单弹层（教师）
+      // 报名名单弹层（教师；管理员只读查看）
       studentListModal: false,
       studentList: [],
+      studentListReadonly: false,   // 后端返回 readonly=true 时为只读（管理员监督查看）
       currentAct: {},
       // 账号管理（管理员）
       adminUsers: [],
@@ -387,6 +388,8 @@ const app = createApp({
         const data = await api(`/api/activities/${act.id}/registrations`);
         this.currentAct = act;
         this.studentList = data.students;
+        // 管理员只读查看（用于监督）：不渲染审核操作，避免看到按钮却调不通接口
+        this.studentListReadonly = !!data.readonly;
         this.studentListModal = true;
       } catch (e) {
         alert(e.message);

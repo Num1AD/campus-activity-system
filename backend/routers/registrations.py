@@ -343,7 +343,7 @@ def review_registration(
 
 
 # ---------------------------------------------------------------
-# 教师查看报名名单
+# 教师与管理员查看报名名单
 # ---------------------------------------------------------------
 @router.get("/activities/{activity_id}/registrations", summary="查看活动报名名单")
 def list_registrations(
@@ -354,14 +354,17 @@ def list_registrations(
     """
     查看活动报名名单（REQ-04：教师掌握报名情况）：
     - 教师：仅能查看自己创建的活动；名单按待审核 / 正式参加 / 候补中分组排序（R-03）
+    - 管理员：可查看平台全部活动的名单，用于监督；仅只读，审核与名额判定仍限组织教师
+      （属第八章的设计约定，不是访谈直接得到的规则，故不在需求表中作为需求列出）
     - 学生：拒绝（学生查看自己的报名状态由 /api/my-activities 提供）
-    - 管理员：不介入具体报名业务，拒绝（R-08）
     """
-    if user["role"] != "teacher":
-        raise HTTPException(status_code=403, detail="仅教师可查看报名名单")
+    role = user["role"]
+    if role not in ("teacher", "admin"):
+        raise HTTPException(status_code=403, detail="仅教师和管理员可查看报名名单")
 
     act = _load_activity(db, activity_id)
-    if act["creator_id"] != user["id"]:
+    # 教师限本人发布的活动；管理员出于监督需要可查看全部活动，但仍只读
+    if role == "teacher" and act["creator_id"] != user["id"]:
         raise HTTPException(status_code=403, detail="只能查看自己发布的活动")
 
     rows = db.execute(
@@ -392,5 +395,7 @@ def list_registrations(
         "confirmed_count": count_registrations(db, activity_id, REG_CONFIRMED),
         "waitlisted_count": count_registrations(db, activity_id, REG_WAITLISTED),
         "pending_count": count_registrations(db, activity_id, REG_PENDING),
+        # 管理员为只读查看，前端据此不渲染审核操作（教师为 False）
+        "readonly": role == "admin",
         "students": students,
     }

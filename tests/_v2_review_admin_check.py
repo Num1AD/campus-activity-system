@@ -285,11 +285,25 @@ chk("US-08", "管理员可从平台层面取消活动", 200, r.status_code, r.st
 r = requests.put(f"{BASE}/api/activities/{aid2}", json={"capacity": 99}, headers=H(tk_admin), timeout=5)
 chk("US-08", "管理员不能修改活动规则（403）", 403, r.status_code, r.status_code == 403)
 
-# 管理员不介入报名业务
+# 管理员不介入报名业务：不能报名、不能审核
 r = requests.post(f"{BASE}/api/activities/{aid}/register", headers=H(tk_admin), timeout=5)
 chk("US-08", "管理员不能报名（403）", 403, r.status_code, r.status_code == 403)
+
+# 管理员可只读查看报名与候补名单（用于监督，第八章设计约定）
 r = requests.get(f"{BASE}/api/activities/{aid}/registrations", headers=H(tk_admin), timeout=5)
-chk("US-08", "管理员不介入报名名单（403）", 403, r.status_code, r.status_code == 403)
+body = r.json() if r.status_code == 200 else {}
+chk("US-08", "管理员可查看报名名单（200，且标记只读）", "200 且 readonly=true",
+    f"{r.status_code} readonly={body.get('readonly')}",
+    r.status_code == 200 and body.get("readonly") is True and "students" in body)
+
+# 管理员对他人（非本人发布）的活动同样可只读查看
+r = requests.get(f"{BASE}/api/activities/{aid2}/registrations", headers=H(tk_admin), timeout=5)
+chk("US-08", "管理员可查看任意活动的名单", 200, r.status_code, r.status_code == 200)
+
+# 只读边界：管理员仍不能审核报名
+r = requests.post(f"{BASE}/api/activities/{aid}/registrations/{sid1}/review",
+                  json={"approve": True}, headers=H(tk_admin), timeout=5)
+chk("US-08", "管理员不能审核报名（403）", 403, r.status_code, r.status_code == 403)
 
 # ---------- 清理 ----------
 print()

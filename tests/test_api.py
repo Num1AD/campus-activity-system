@@ -355,6 +355,20 @@ def main():
           r.json(), r.status_code == 403)
     post(f"/api/admin/users/{sid2}/status", {"is_active": True}, admin_tk)
 
+    # 管理员可只读查看报名与候补名单（第八章设计约定：监督需要，但不处理）
+    r = get(f"/api/activities/{rev_id}/registrations", admin_tk)
+    body = r.json()
+    check("TEST-37", "R-08", "管理员只读查看活动报名名单",
+          "返回 200，readonly=true，且含名单",
+          {"readonly": body.get("readonly"), "人数": len(body.get("students", []))},
+          r.status_code == 200 and body.get("readonly") is True and "students" in body)
+
+    # 只读边界：管理员不能审核
+    r = post(f"/api/activities/{rev_id}/registrations/{sid1}/review",
+             {"approve": True}, admin_tk)
+    check("TEST-38", "R-08", "管理员审核报名（越权）", "返回 403（fail-closed）",
+          r.json(), r.status_code == 403)
+
     # ---------- 汇总 ----------
     print("\n" + "=" * 60)
     print(f"验证结果汇总：共 {len(RESULTS)} 条用例，通过 {PASS} 条，失败 {FAIL} 条")
