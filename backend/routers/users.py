@@ -49,6 +49,7 @@ def user_dict(user: sqlite3.Row) -> dict:
         "username": user["username"],
         "name": user["name"],
         "role": user["role"],
+        "is_active": bool(user["is_active"]),
         "created_at": user["created_at"],
     }
 
@@ -58,7 +59,12 @@ def user_dict(user: sqlite3.Row) -> dict:
 # ---------------------------------------------------------------
 @router.post("/register", summary="用户注册")
 def register(req: RegisterRequest, db: sqlite3.Connection = Depends(get_db)):
-    """注册新用户：角色合法、用户名不重复、密码哈希存储后落库。"""
+    """
+    注册新用户：角色合法、用户名不重复、密码哈希存储后落库。
+
+    角色白名单仍限定 student / teacher：系统管理员属于平台侧角色，
+    由平台预先配置，不开放自助注册（对应管理员访谈：管理员负责平台秩序）。
+    """
     # 校验角色合法性（fail-closed：白名单）
     if req.role not in ("student", "teacher"):
         raise HTTPException(status_code=400, detail="角色必须为 student 或 teacher")
@@ -79,13 +85,19 @@ def register(req: RegisterRequest, db: sqlite3.Connection = Depends(get_db)):
 
 @router.post("/login", summary="用户登录")
 def login(req: LoginRequest, db: sqlite3.Connection = Depends(get_db)):
-    """登录：校验密码，成功后签发 token 并返回。"""
+    """登录：校验密码，成功后签发 token 并返回。
+
+    V2.0：被停用的账号不能登录（R-08，US-08 验收标准）。
+    """
     user = db.execute(
         "SELECT * FROM users WHERE username = ?", (req.username,)
     ).fetchone()
     # 统一报错文案，避免暴露"用户是否存在"（防用户名探测）
     if user is None or not verify_password(req.password, user["password_hash"]):
         raise HTTPException(status_code=401, detail="用户名或密码错误")
+
+    if not user["is_active"]:
+        raise HTTPException(status_code=403, detail="账号已被停用，请联系系统管理员")
 
     token = create_token(user["id"])
     return {"token": token, "user": user_dict(user)}

@@ -71,6 +71,9 @@ def get_current_user(
     """
     FastAPI 依赖：解析请求头 Authorization: Bearer <token>，
     校验 token 并返回对应用户行。无效则抛 401。
+
+    V2.0 新增账号状态校验（R-08）：被管理员停用的账号，即便此前签发的 token
+    仍在有效期内也一律拒绝，否则停用只能挡住下一次登录、挡不住已登录的会话。
     """
     # 解析 "Bearer xxx"
     if not authorization.startswith("Bearer "):
@@ -84,4 +87,6 @@ def get_current_user(
     user = db.execute("SELECT * FROM users WHERE id = ?", (user_id,)).fetchone()
     if user is None:
         raise HTTPException(status_code=401, detail="用户不存在")
+    if not user["is_active"]:
+        raise HTTPException(status_code=401, detail="账号已被停用，请联系系统管理员")
     return user

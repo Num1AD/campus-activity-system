@@ -22,7 +22,15 @@ from pydantic import BaseModel, Field, field_validator
 
 from backend.auth import get_current_user
 from backend.database import get_db
-from backend.helpers import FMT, STATUS_OPEN, activity_to_dict, calc_status, now_str
+from backend.helpers import (
+    FMT,
+    REG_CONFIRMED,
+    STATUS_OPEN,
+    activity_to_dict,
+    calc_status,
+    count_registrations,
+    now_str,
+)
 
 router = APIRouter(prefix="/api", tags=["活动"])
 
@@ -55,13 +63,19 @@ def _validate_time_format(value: str) -> str:
 # 请求体模型
 # ---------------------------------------------------------------
 class ActivityCreate(BaseModel):
-    """发布活动请求。时间格式：YYYY-MM-DD HH:MM。"""
+    """发布活动请求。时间格式：YYYY-MM-DD HH:MM。
+
+    require_review / eligibility 为 V2.0 新增（R-06、第七章行 5）：
+    教师按活动自行决定是否需要审核报名，并填写参加资格条件说明。
+    """
     title: str = Field(min_length=1, max_length=64, description="活动名称")
     description: str = Field(default="", max_length=1000, description="活动描述")
     location: str = Field(min_length=1, max_length=128, description="活动地点")
     start_time: str = Field(description="活动开始时间 YYYY-MM-DD HH:MM")
     end_time: str = Field(description="活动结束时间 YYYY-MM-DD HH:MM")
     capacity: int = Field(gt=0, le=10000, description="人数上限")
+    require_review: bool = Field(default=False, description="该活动报名是否需要审核")
+    eligibility: str = Field(default="", max_length=500, description="参加资格条件说明")
 
     @field_validator("start_time", "end_time")
     @classmethod
@@ -77,6 +91,8 @@ class ActivityUpdate(BaseModel):
     start_time: str | None = None
     end_time: str | None = None
     capacity: int | None = Field(default=None, gt=0, le=10000)
+    require_review: bool | None = None
+    eligibility: str | None = Field(default=None, max_length=500)
 
     @field_validator("start_time", "end_time")
     @classmethod
@@ -137,7 +153,10 @@ def create_activity(
     user=Depends(get_current_user),
     db: sqlite3.Connection = Depends(get_db),
 ):
-    """教师发布活动（REQ-03）。校验角色与时间合法性。"""
+    """教师发布活动（REQ-03）。校验角色与时间合法性。
+
+    V2.0 新增：可在发布时决定该活动是否需要审核（R-06），并填写参加资格条件。
+    """
     _require_teacher(user)
 
     # 基础校验：开始时间必须晚于结束时间不可接受（fail-closed）
@@ -147,10 +166,13 @@ def create_activity(
         raise HTTPException(status_code=400, detail="开始时间必须晚于当前时间")
 
     cur = db.execute(
-        "INSERT INTO activities (title, description, location, start_time, end_time, capacity, creator_id) "
-        "VALUES (?, ?, ?, ?, ?, ?, ?)",
+        "INSERT INTO activities "
+        "(title, description, location, start_time, end_time, capacity, "
+        " require_review, eligibility, creator_id) "
+        "VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)",
         (req.title, req.description, req.location,
-         req.start_time, req.end_time, req.capacity, user["id"]),
+         req.start_time, req.end_time, req.capacity,
+         1 if req.require_review else 0, req.eligibility, user["id"]),
     )
     db.commit()
     return {"message": "发布成功", "activity_id": cur.lastrowid}
@@ -190,24 +212,27 @@ def update_activity(
         raise HTTPException(status_code=400, detail="开始时间必须晚于当前时间")
 
     # 人数上限不得小于已报名人数
+    # V2.0 口径调整（第八章规则 1）：只统计正式参加，候补与待审核不占名额，
+    # 否则会出现"候补人数把容量顶满、教师无法把上限调回合理值"的矛盾
     if req.capacity is not None:
-        registered = db.execute(
-            "SELECT COUNT(*) AS n FROM registrations WHERE activity_id = ?",
-            (activity_id,),
-        ).fetchone()["n"]
-        if req.capacity < registered:
+        confirmed = count_registrations(db, activity_id, REG_CONFIRMED)
+        if req.capacity < confirmed:
             raise HTTPException(
                 status_code=400,
-                detail=f"人数上限不能小于已报名人数（当前已报名 {registered} 人）",
+                detail=f"人数上限不能小于正式参加人数（当前正式参加 {confirmed} 人）",
             )
 
     # 收集需要更新的字段（动态 SQL，仅更新传入项）
     updates, params = [], []
-    for field in ("title", "description", "location", "start_time", "end_time", "capacity"):
+    for field in ("title", "description", "location", "start_time", "end_time",
+                  "capacity", "require_review", "eligibility"):
         value = getattr(req, field)
-        if value is not None:
-            updates.append(f"{field} = ?")
-            params.append(value)
+        if value is None:
+            continue
+        if field == "require_review":
+            value = 1 if value else 0
+        updates.append(f"{field} = ?")
+        params.append(value)
     if not updates:
         return {"message": "未提供需要更新的字段"}
 
