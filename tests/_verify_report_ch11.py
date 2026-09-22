@@ -2,9 +2,9 @@
 _verify_report_ch11.py —— 从磁盘读回报告，核对第十一章（AI 使用记录）填写结果
 
 核对点：
-1. AI 记录表 4 行 × 4 列全部填写，无空单元格
+1. AI 记录表 5 行 × 4 列全部填写，无空单元格
 2. 「本组如何检查/修改」列不含问法命中率一类的表述（正式材料里不写机器批量验证式的统计）
-3. 工具列写明模型名
+3. 工具列写明模型名（前四环节 DeepSeek，末行报告审查为 GLM）
 4. 模板原话说明句未被改动
 5. 文档结构未受破坏（13 张表、图 8-1 在位），且第十二章仍是空的（本轮不动它）
 """
@@ -38,7 +38,8 @@ print("【1】AI 记录表填写完整性")
 chk("表头未变", rows[0] == ["使用环节", "使用的AI工具", "AI主要帮助内容", "本组如何检查/修改"],
     " | ".join(rows[0]))
 empty = [(ri, ci) for ri in range(1, len(rows)) for ci, v in enumerate(rows[ri]) if not v]
-chk("4 行 16 个单元格全部非空", not empty, f"空单元格 {empty}" if empty else "")
+chk("5 行 20 个单元格全部非空", len(rows) == 6 and not empty,
+    f"行数 {len(rows)} / 空单元格 {empty}" if empty or len(rows) != 6 else "")
 
 print()
 print("【2】两处修改的落实检查")
@@ -47,12 +48,15 @@ chk("已删除问法命中率一类表述",
     not any(k in full_col4 for k in ["命中", "24 句", "24句", "命中率", "100%"]))
 chk("访谈表述仍强调由本人完成",
     "访谈过程由本人完成" in rows[1][3])
-chk("工具列写明模型名",
-    all("DeepSeek" in rows[ri][1] for ri in range(1, len(rows))),
-    rows[1][1])
+chk("工具列每行都写明模型名",
+    all(("DeepSeek" in rows[ri][1]) or ("GLM" in rows[ri][1]) for ri in range(1, len(rows))),
+    " | ".join(rows[ri][1] for ri in range(1, len(rows))))
+chk("末行「报告撰写与交付前审查」使用 GLM 模型",
+    rows[5][0] == "报告撰写与交付前审查" and "GLM" in rows[5][1],
+    rows[5][1])
 
 print()
-print("【3】四行环节（模板给了 4 行）")
+print("【3】五行环节（模板给 4 行，末行报告审查为新增）")
 for ri in range(1, len(rows)):
     print(f"    行{ri}: {rows[ri][0]}  |  {len(rows[ri][2])} / {len(rows[ri][3])} 字")
 
