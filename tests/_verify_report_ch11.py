@@ -3,7 +3,7 @@ _verify_report_ch11.py —— 从磁盘读回报告，核对第十一章（AI �
 
 核对点：
 1. AI 记录表 4 行 × 4 列全部填写，无空单元格
-2. 「本组如何检查/修改」列不含问法命中率一类的表述（用户明确要求删除，避免读起来像用 AI 生成访谈）
+2. 「本组如何检查/修改」列不含问法命中率一类的表述（正式材料里不写机器批量验证式的统计）
 3. 工具列写明模型名
 4. 模板原话说明句未被改动
 5. 文档结构未受破坏（13 张表、图 8-1 在位），且第十二章仍是空的（本轮不动它）
@@ -41,7 +41,7 @@ empty = [(ri, ci) for ri in range(1, len(rows)) for ci, v in enumerate(rows[ri])
 chk("4 行 16 个单元格全部非空", not empty, f"空单元格 {empty}" if empty else "")
 
 print()
-print("【2】用户要求的两处修改")
+print("【2】两处修改的落实检查")
 full_col4 = "\n".join(rows[ri][3] for ri in range(1, len(rows)))
 chk("已删除问法命中率一类表述",
     not any(k in full_col4 for k in ["命中", "24 句", "24句", "命中率", "100%"]))
