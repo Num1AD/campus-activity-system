@@ -1,5 +1,8 @@
 """
-_seed_v2_demo.py —— 为前端实测准备 V2.0 演示场景（临时数据，验证后清理）
+_seed_v2_demo.py —— 为前端实测准备 V2.0 演示场景（临时数据，验证后可清理）
+
+活动标题统一带「【V2演示】」前缀，与 database.py 里的正式演示活动（DEMO_ACTIVITIES）
+互不干扰 —— 否则同名活动会被本脚本删除重建，破坏首次建库的标准演示数据。
 
 场景：
 1. 「人工智能前沿讲座」容量 2、需审核、有参加资格 → 两个学生报名后由教师审核
@@ -18,7 +21,7 @@ sys.stdout.reconfigure(encoding="utf-8")
 BASE = "http://127.0.0.1:8000"
 DB = "backend/activity.db"
 FMT = "%Y-%m-%d %H:%M"
-DEMO_TITLES = ("人工智能前沿讲座", "迎新志愿服务", "实验室安全培训", "摄影技巧分享会")
+DEMO_TITLES = ("【V2演示】智能讲座", "【V2演示】志愿服务", "【V2演示】安全培训", "【V2演示】摄影分享会")
 
 # ---- 先清理上一轮的演示数据（可重复执行） ----
 conn = sqlite3.connect(DB)
@@ -63,7 +66,7 @@ sid1 = requests.get(f"{BASE}/api/me", headers=H(tk_s1), timeout=5).json()["id"]
 sid2 = requests.get(f"{BASE}/api/me", headers=H(tk_s2), timeout=5).json()["id"]
 
 # ---- 场景 1：需审核 + 资格，容量 2 ----
-a1 = mk("人工智能前沿讲座", 9, 2, review=True, elig="仅限计算机相关专业学生")
+a1 = mk("【V2演示】智能讲座", 9, 2, review=True, elig="仅限计算机相关专业学生")
 requests.post(f"{BASE}/api/activities/{a1}/register", headers=H(tk_s1), timeout=5)
 requests.post(f"{BASE}/api/activities/{a1}/register", headers=H(tk_s2), timeout=5)
 requests.post(f"{BASE}/api/activities/{a1}/registrations/{sid1}/review",
@@ -72,22 +75,22 @@ requests.post(f"{BASE}/api/activities/{a1}/registrations/{sid2}/review",
               json={"approve": True}, headers=H(tk_t), timeout=5)
 
 # ---- 场景 2：无需审核，容量 1，先满后候补 ----
-a2 = mk("迎新志愿服务", 12, 1)
+a2 = mk("【V2演示】志愿服务", 12, 1)
 requests.post(f"{BASE}/api/activities/{a2}/register", headers=H(tk_s1), timeout=5)
 requests.post(f"{BASE}/api/activities/{a2}/register", headers=H(tk_s2), timeout=5)
 
 # ---- 场景 3：留一条待审核，便于演示审核操作 ----
-a3 = mk("实验室安全培训", 16, 30, review=True, elig="面向全体学生")
+a3 = mk("【V2演示】安全培训", 16, 30, review=True, elig="面向全体学生")
 requests.post(f"{BASE}/api/activities/{a3}/register", headers=H(tk_s1), timeout=5)
 
 # ---- 场景 4：容量 1 且已满，但 student02 没报名 ----
 # 用于验证活动广场上「报名（进入候补）」的按钮文案
-a4 = mk("摄影技巧分享会", 20, 1)
+a4 = mk("【V2演示】摄影分享会", 20, 1)
 requests.post(f"{BASE}/api/activities/{a4}/register", headers=H(tk_s1), timeout=5)
 
 print("演示数据已就绪：")
-for aid, name in [(a1, "人工智能前沿讲座"), (a2, "迎新志愿服务"),
-                  (a3, "实验室安全培训"), (a4, "摄影技巧分享会")]:
+for aid, name in [(a1, "【V2演示】智能讲座"), (a2, "【V2演示】志愿服务"),
+                  (a3, "【V2演示】安全培训"), (a4, "【V2演示】摄影分享会")]:
     d = requests.get(f"{BASE}/api/activities/{aid}", timeout=5).json()
     print(f"  #{aid} {name}: 正式 {d['registered']}/{d['capacity']} | 候补 {d['waitlisted']} | "
           f"待审核 {d['pending_review']} | 需审核 {d['require_review']}")

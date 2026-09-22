@@ -15,6 +15,7 @@ _verify_frontend_v2.py —— V2.0 前端功能实测（playwright + 系统 Edge
 import os
 import sys
 
+import requests
 from playwright.sync_api import sync_playwright
 
 sys.stdout.reconfigure(encoding="utf-8")
@@ -24,6 +25,33 @@ OUT = os.path.join("report", "_v2check")
 os.makedirs(OUT, exist_ok=True)
 
 PASS = FAIL = 0
+
+
+def ensure_pending_registration():
+    """
+    确保「【V2演示】安全培训」存在一条待审核报名。
+
+    本脚本会执行"审核通过"操作，重复运行后该记录就不再是待审核状态，
+    因此每次运行前先恢复：若已不是待审核，则撤回后重新报名。
+    """
+    r = requests.post(f"{BASE}/api/login",
+                      json={"username": "student01", "password": "123456"}, timeout=5)
+    if r.status_code != 200:
+        return None
+    h = {"Authorization": f"Bearer {r.json()['token']}"}
+    acts = requests.get(f"{BASE}/api/activities", timeout=5).json()["activities"]
+    act = next((a for a in acts if a["title"] == "【V2演示】安全培训"), None)
+    if act is None:
+        print("  （提示：演示活动「【V2演示】安全培训」不存在，请先运行 _seed_v2_demo.py）")
+        return None
+    mine = requests.get(f"{BASE}/api/my-activities", headers=h, timeout=5).json()["activities"]
+    cur = next((a for a in mine if a["id"] == act["id"]), None)
+    if cur and cur.get("reg_status") == "待审核":
+        return act["id"]
+    requests.delete(f"{BASE}/api/activities/{act['id']}/register", headers=h, timeout=5)
+    requests.post(f"{BASE}/api/activities/{act['id']}/register", headers=h, timeout=5)
+    print("  （已为「【V2演示】安全培训」重新生成一条待审核报名）")
+    return act["id"]
 
 
 def chk(name, ok, detail=""):
@@ -47,6 +75,9 @@ def login(pg, username, password="123456"):
 
 
 with sync_playwright() as p:
+    # 先恢复测试前置状态（脚本可重复运行）
+    ensure_pending_registration()
+
     b = p.chromium.launch(channel="msedge", headless=True)
     ctx = b.new_context(viewport={"width": 1440, "height": 1000}, locale="zh-CN")
     pg = ctx.new_page()
@@ -104,8 +135,8 @@ with sync_playwright() as p:
     meta = pg.locator(".act-card .act-meta").all_inner_texts()
     chk("教师卡片显示候补人数", any("候补" in m for m in meta), f"{meta[:3]}")
 
-    # 打开「实验室安全培训」的名单（有一条待审核）
-    target = pg.locator(".act-card", has=pg.locator(".act-title", has_text="实验室安全培训"))
+    # 打开「【V2演示】安全培训」的名单（有一条待审核）
+    target = pg.locator(".act-card", has=pg.locator(".act-title", has_text="【V2演示】安全培训"))
     target.locator('button:has-text("报名名单")').click()
     pg.wait_for_timeout(1000)
     groups = pg.locator(".modal .group-title").all_inner_texts()

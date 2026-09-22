@@ -100,8 +100,18 @@ body {
   display: flex; align-items: center; gap: 4px;
 }
 .act-desc { color: #4b5563; font-size: 13px; line-height: 1.6; min-height: 42px; }
-.act-meta { display: flex; justify-content: space-between; color: #6b7280; font-size: 13px; }
-.act-foot { display: flex; gap: 8px; justify-content: flex-end; margin-top: 4px; }
+/*
+ * 时间与人数：margin-top:auto 把它连同下方操作区一起推到卡片底部。
+ * 这样同一行卡片的「时间行」和「按钮行」都对齐，不会因为个别活动多了一行
+ * 「参加资格」说明就把下面的内容整体顶下去。
+ */
+.act-meta {
+  display: flex; justify-content: space-between; color: #6b7280; font-size: 13px;
+  margin-top: auto; gap: 8px; flex-wrap: wrap;
+}
+.act-foot {
+  display: flex; gap: 8px; justify-content: flex-end; margin-top: 2px;
+}
 
 /* ---------- 弹层 ---------- */
 /* 弹窗尺寸策略：
@@ -173,9 +183,12 @@ body {
 .tag-disabled   { background: #fee2e2; color: #b91c1c; }
 
 /* ---------- 卡片补充信息 ---------- */
+/* 参加资格：字数不定，限制为最多两行，避免个别活动写得很长时把整行卡片撑高、破坏对齐 */
 .act-eligibility {
-  font-size: 12px; color: #6b7280; margin-top: 4px;
+  font-size: 12px; color: #6b7280;
   padding: 4px 8px; background: #f9fafb; border-radius: 6px;
+  display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical;
+  overflow: hidden; line-height: 1.5;
 }
 .meta-wait    { color: #1d4ed8; }
 .meta-pending { color: #92400e; }
