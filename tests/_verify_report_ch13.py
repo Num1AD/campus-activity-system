@@ -44,14 +44,19 @@ left = [(ri, ci) for ri in (2, 3) for ci in range(3) if rows[ri][ci]]
 chk("其余两行按模板留空（单人组）", not left, f"多填 {left}" if left else "")
 
 print()
-print("【2】签名与姓名在格式上区分")
-c_name = t.rows[1].cells[0]
-c_sign = t.rows[1].cells[1]
-name_font = {r.font.name for p in c_name.paragraphs for r in p.runs}
-sign_font = {r.font.name for p in c_sign.paragraphs for r in p.runs}
-chk("签名使用楷体，姓名用默认字体",
-    any("楷体" in (f or "") for f in sign_font) and not any("楷体" in (f or "") for f in name_font),
-    f"姓名={name_font} 签名={sign_font}")
+print("【2】签名与表格其他文字字体一致（按本人要求）")
+def fmt(cell):
+    r = cell.paragraphs[0].runs[0]
+    return (r.font.name, r.font.size.pt if r.font.size else None)
+
+
+c_name, c_sign, c_date = t.rows[1].cells[0], t.rows[1].cells[1], t.rows[1].cells[2]
+chk("三格字体与字号完全相同",
+    fmt(c_name) == fmt(c_sign) == fmt(c_date),
+    f"{fmt(c_name)} / {fmt(c_sign)} / {fmt(c_date)}")
+chk("签名与姓名一致", fmt(c_sign) == fmt(c_name), f"{fmt(c_sign)}")
+chk("均为微软雅黑且未设显式字号（继承表格默认）",
+    fmt(c_sign) == ("微软雅黑", None), str(fmt(c_sign)))
 
 print()
 print("【3】模板结构")
