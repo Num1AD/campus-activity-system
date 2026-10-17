@@ -85,10 +85,13 @@ print()
 print("【4】图片")
 sec = d.sections[0]
 usable = Emu(sec.page_width - sec.left_margin - sec.right_margin).cm
-chk("三张图均在位", len(d.inline_shapes) == 3, "%d 张" % len(d.inline_shapes))
+chk("四张图均在位", len(d.inline_shapes) == 4, "%d 张" % len(d.inline_shapes))
 overs = [i + 1 for i, sh in enumerate(d.inline_shapes) if sh.width.cm > usable + 0.05]
 chk("图片均不超过可用宽度 %.2f cm" % usable, not overs, "超宽: %s" % overs)
-chk("图题齐全", all(k in full for k in ["图 2-1", "图 2-2", "图 4-1"]))
+chk("图题齐全且顺序正确",
+    all(k in full for k in ["图 2-1", "图 2-2", "图 4-1", "图 4-2"]))
+chk("图 4-1 为状态流转图", "图 4-1　报名状态流转与事件记录" in full)
+chk("图 4-2 为界面截图", "图 4-2　「我的活动」" in full)
 
 print()
 print("【5】正文数字与数据包实算值一致")
@@ -127,7 +130,46 @@ chk("无半角标点", not half, "出现: %s" % half)
 chk("无占位词 TODO/待补", not any(k in full for k in ["TODO", "待补", "xxx", "XXX"]))
 
 print()
-print("【7】篇幅")
+print("【7】字体与字号一致性")
+from docx.oxml.ns import qn
+from collections import Counter as _C
+
+fonts = _C()
+para_sizes = _C()
+tbl_sizes = _C()
+marks = _C()
+for pp in d.paragraphs:
+    for r in pp.runs:
+        if not pp.text.strip():
+            continue
+        fonts[str(r.font.name)] += 1
+        key = "标题继承" if pp.style.name in ("Title", "Heading 1") else str(
+            r.font.size.pt if r.font.size else "继承")
+        para_sizes[key] += 1
+    pPr = pp._p.pPr
+    if pPr is not None:
+        rpr = pPr.find(qn("w:rPr"))
+        if rpr is not None and rpr.find(qn("w:sz")) is not None:
+            marks["显式"] += 1
+for tb in d.tables:
+    for row in tb.rows:
+        for c in row.cells:
+            for pp in c.paragraphs:
+                for r in pp.runs:
+                    fonts[str(r.font.name)] += 1
+                    tbl_sizes[str(r.font.size.pt if r.font.size else "继承")] += 1
+
+chk("全文字体只有微软雅黑", set(fonts) == {"微软雅黑"}, str(dict(fonts)))
+chk("正文字号只有 10.5 / 副标题 10 / 图题 9 / 标题继承",
+    set(para_sizes) <= {"10.5", "10.0", "9.0", "标题继承"}, str(dict(para_sizes)))
+chk("表格统一 9pt", set(tbl_sizes) == {"9.0"}, str(dict(tbl_sizes)))
+chk("段落标记无显式字号（空段落行高一致）", not marks, str(dict(marks)))
+chk("标题样式已改为显式微软雅黑（不依赖主题字体）",
+    "majorEastAsia" not in d.styles["Heading 1"].element.xml,
+    "仍引用主题字体" if "majorEastAsia" in d.styles["Heading 1"].element.xml else "")
+
+print()
+print("【8】篇幅")
 body_chars = sum(len(p.text.strip()) for p in d.paragraphs if p.style.name == "Normal")
 table_chars = sum(len(c.text.strip()) for tb in d.tables for row in tb.rows for c in row.cells)
 chk("正文（不含表格）不少于 2 000 字", body_chars >= 2000, "%d 字" % body_chars)
