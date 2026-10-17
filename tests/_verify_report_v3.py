@@ -61,7 +61,7 @@ print()
 print("【2】表格")
 chk("表格数为 3", len(d.tables) == 3, "%d 张" % len(d.tables))
 t0, t1, t2 = d.tables
-chk("基本信息表 5 行 2 列", len(t0.rows) == 5 and len(t0.columns) == 2,
+chk("基本信息表 6 行 2 列（含代码仓库行）", len(t0.rows) == 6 and len(t0.columns) == 2,
     "%d×%d" % (len(t0.rows), len(t0.columns)))
 chk("需求调整表 3 行（表头 + 2 条需求）", len(t1.rows) == 3, "%d 行" % len(t1.rows))
 chk("验证结果表 7 行（表头 + 6 条验证）", len(t2.rows) == 7, "%d 行" % len(t2.rows))
@@ -80,6 +80,11 @@ chk("班级勾选 6 班", "☑ 6 班" in t0.rows[1].cells[1].text, t0.rows[1].ce
 chk("组名正确", t0.rows[2].cells[1].text.strip() == "之乎者也", t0.rows[2].cells[1].text.strip())
 chk("组员姓名正确", t0.rows[3].cells[1].text.strip() == "肖子恒", t0.rows[3].cells[1].text.strip())
 chk("组内分工已填", len(t0.rows[4].cells[1].text.strip()) > 8, t0.rows[4].cells[1].text.strip()[:30])
+REPO = "https://github.com/Num1AD/campus-activity-system"
+chk("基本信息含可访问的代码仓库地址",
+    t0.rows[5].cells[0].text.strip() == "代码仓库" and t0.rows[5].cells[1].text.strip() == REPO,
+    t0.rows[5].cells[1].text.strip())
+chk("第四章版本记录也给出仓库地址", REPO in full)
 
 print()
 print("【4】图片")
@@ -122,12 +127,13 @@ print("【6】残留与标点")
 chk("无模板占位【填写…】残留", "【填写" not in full,
     [t[:40] for t in texts if "【填写" in t][:3])
 chk("标题已去掉「模板」二字", "实验报告模板" not in full)
-half = []
-for ch in ['"', "'", ",", ";", ":", "?", "!"]:
-    if ch in full:
-        half.append(ch)
-chk("无半角标点", not half, "出现: %s" % half)
 chk("无占位词 TODO/待补", not any(k in full for k in ["TODO", "待补", "xxx", "XXX"]))
+
+# 网址本身必然含半角冒号与斜杠，检查标点前先剔除，否则会把正常的仓库地址判成问题
+import re as _re
+no_url = _re.sub(r"https?://[^\s）)]+", "", full)
+half = [ch for ch in ['"', "'", ",", ";", ":", "?", "!"] if ch in no_url]
+chk("正文无半角标点（已剔除网址）", not half, "出现: %s" % half)
 
 print()
 print("【7】字体与字号一致性")

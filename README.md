@@ -8,6 +8,10 @@
 | 实验二《基于用户访谈的需求演化》 | 用户访谈 | V2.0 |
 | 实验三《基于运行数据的需求演化》 | 模拟运行数据分析 | V3.0 |
 
+**代码仓库**：https://github.com/Num1AD/campus-activity-system
+
+（本仓库只托管代码、文档与过程数据；三份实验报告因体积与提交约定，放在交付包的 `report/` 目录，未纳入 Git。）
+
 ## 技术栈
 
 - 后端：FastAPI（Python）+ SQLite（标准库 sqlite3）
