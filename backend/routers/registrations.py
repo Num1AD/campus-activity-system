@@ -31,13 +31,22 @@ from pydantic import BaseModel, Field
 from backend.auth import get_current_user
 from backend.database import get_db
 from backend.helpers import (
+    EVT_APPLY,
+    EVT_PROMOTED,
+    EVT_REASON_TEXT,
+    EVT_REVIEW_APPROVED,
+    EVT_REVIEW_REJECTED,
+    EVT_REVIEW_WAITLISTED,
+    EVT_WITHDRAW,
     REG_CONFIRMED,
     REG_PENDING,
     REG_WAITLISTED,
+    STATUS_REMOVED,
     activity_to_dict,
     calc_status,
     count_registrations,
     now_str,
+    record_registration_event,
     reg_status_text,
 )
 
@@ -66,6 +75,29 @@ def _first_waitlisted(db: sqlite3.Connection, activity_id: int) -> sqlite3.Row |
         "ORDER BY queued_at, id LIMIT 1",
         (activity_id, REG_WAITLISTED),
     ).fetchone()
+
+
+def _queue_position(db: sqlite3.Connection, activity_id: int, user_id: int) -> int | None:
+    """
+    某学生在其候补队列中的位置（1 起），非候补返回 None。
+
+    排序口径与递补规则完全一致（queued_at 升序，id 兜底），
+    保证"显示的排队位置"与"实际被递补的先后"是同一套顺序（R3-01）。
+    """
+    rows = db.execute(
+        "SELECT user_id FROM registrations WHERE activity_id = ? AND status = ? "
+        "ORDER BY queued_at, id",
+        (activity_id, REG_WAITLISTED),
+    ).fetchall()
+    for i, r in enumerate(rows, 1):
+        if r["user_id"] == user_id:
+            return i
+    return None
+
+
+def _queue_total(db: sqlite3.Connection, activity_id: int) -> int:
+    """候补队列总人数（与排队位置同一口径）。"""
+    return count_registrations(db, activity_id, REG_WAITLISTED)
 
 
 # ---------------------------------------------------------------
@@ -99,17 +131,30 @@ def register_activity(
     try:
         db.execute("BEGIN IMMEDIATE")
         dup = db.execute(
-            "SELECT id FROM registrations WHERE activity_id = ? AND user_id = ?",
+            "SELECT id, status FROM registrations WHERE activity_id = ? AND user_id = ?",
             (activity_id, user["id"]),
         ).fetchone()
         if dup:
-            raise HTTPException(status_code=400, detail="你已报名该活动，不能重复报名")
+            # V3.0（R3-02）：重复报名不是"请求出错"，而是与当前状态冲突。
+            # 返回 409 并带上当前状态，前端据此提示"你已报名，当前状态：正式参加"，
+            # 而不是把一句"不能重复报名"当作错误弹出来——那正是数据里 126 条
+            # 重复提交的成因：用户不确定第一次是否成功，又点了一次，结果看到报错。
+            raise HTTPException(
+                status_code=409,
+                detail={
+                    "message": "你已报名该活动，无需重复提交",
+                    "current_status": reg_status_text(dup["status"]),
+                },
+            )
 
         # R-06：需审核的活动先进入待审核，此时不占用名额
         if act["require_review"]:
             db.execute(
                 "INSERT INTO registrations (activity_id, user_id, status) VALUES (?, ?, ?)",
                 (activity_id, user["id"], REG_PENDING),
+            )
+            record_registration_event(
+                db, activity_id, user["id"], None, REG_PENDING, EVT_APPLY
             )
             db.commit()
             return {
@@ -125,6 +170,9 @@ def register_activity(
                 "INSERT INTO registrations (activity_id, user_id, status) VALUES (?, ?, ?)",
                 (activity_id, user["id"], REG_CONFIRMED),
             )
+            record_registration_event(
+                db, activity_id, user["id"], None, REG_CONFIRMED, EVT_APPLY
+            )
             db.commit()
             return {
                 "message": "报名成功",
@@ -138,12 +186,16 @@ def register_activity(
             "VALUES (?, ?, ?, ?)",
             (activity_id, user["id"], REG_WAITLISTED, queued_at),
         )
+        record_registration_event(
+            db, activity_id, user["id"], None, REG_WAITLISTED, EVT_APPLY
+        )
         db.commit()
         return {
             "message": "活动名额已满，已进入候补队列",
             "activity_id": activity_id,
             "reg_status": reg_status_text(REG_WAITLISTED),
             "queued_at": queued_at,
+            "queue_position": _queue_position(db, activity_id, user["id"]),
         }
     except HTTPException:
         db.rollback()
@@ -151,7 +203,13 @@ def register_activity(
     except sqlite3.IntegrityError:
         # UNIQUE 约束兜底（极端并发下重复报名）
         db.rollback()
-        raise HTTPException(status_code=400, detail="你已报名该活动，不能重复报名")
+        raise HTTPException(
+            status_code=409,
+            detail={
+                "message": "你已报名该活动，无需重复提交",
+                "current_status": None,
+            },
+        )
 
 
 @router.delete("/activities/{activity_id}/register", summary="学生取消报名或退出候补")
@@ -181,6 +239,10 @@ def unregister_activity(
             raise HTTPException(status_code=400, detail="你尚未报名该活动")
 
         db.execute("DELETE FROM registrations WHERE id = ?", (reg["id"],))
+        # V3.0：本人主动取消/撤回，记一条事件（不提醒自己）
+        record_registration_event(
+            db, activity_id, user["id"], reg["status"], STATUS_REMOVED, EVT_WITHDRAW
+        )
 
         promoted = None
         if reg["status"] == REG_CONFIRMED:
@@ -190,6 +252,11 @@ def unregister_activity(
                 db.execute(
                     "UPDATE registrations SET status = ?, queued_at = NULL WHERE id = ?",
                     (REG_CONFIRMED, nxt["id"]),
+                )
+                # V3.0：递补由系统触发，被递补的学生需要收到提醒（needs_notice=1）
+                record_registration_event(
+                    db, activity_id, nxt["user_id"],
+                    REG_WAITLISTED, REG_CONFIRMED, EVT_PROMOTED,
                 )
                 promoted = nxt["user_id"]
         db.commit()
@@ -234,6 +301,14 @@ def my_activities(
             item["reg_status"] = reg_status_text(r["reg_status"])
             item["reg_status_code"] = r["reg_status"]
             item["reg_queued_at"] = r["reg_queued_at"]
+            # V3.0（R3-01）：候补中时给出排队位置与队列总人数，
+            # 让"还要等多久"从不可知变成至少知道前面有几个人
+            if r["reg_status"] == REG_WAITLISTED:
+                item["queue_position"] = _queue_position(db, r["id"], user["id"])
+                item["waitlist_total"] = _queue_total(db, r["id"])
+            else:
+                item["queue_position"] = None
+                item["waitlist_total"] = None
             result.append(item)
         return {"activities": result}
 
@@ -303,6 +378,10 @@ def review_registration(
         # 未通过：报名记录移除，该学生不能参加（US-06 异常情形）
         if not req.approve:
             db.execute("DELETE FROM registrations WHERE id = ?", (reg["id"],))
+            # V3.0：审核结果由教师触发，需要提醒学生（R3-01）
+            record_registration_event(
+                db, activity_id, student_id, REG_PENDING, STATUS_REMOVED, EVT_REVIEW_REJECTED
+            )
             db.commit()
             return {
                 "message": "已拒绝该报名申请",
@@ -317,6 +396,9 @@ def review_registration(
                 "UPDATE registrations SET status = ? WHERE id = ?",
                 (REG_CONFIRMED, reg["id"]),
             )
+            record_registration_event(
+                db, activity_id, student_id, REG_PENDING, REG_CONFIRMED, EVT_REVIEW_APPROVED
+            )
             db.commit()
             return {
                 "message": "审核通过，该学生已确定为正式参加",
@@ -329,6 +411,9 @@ def review_registration(
         db.execute(
             "UPDATE registrations SET status = ?, queued_at = ? WHERE id = ?",
             (REG_WAITLISTED, queued_at, reg["id"]),
+        )
+        record_registration_event(
+            db, activity_id, student_id, REG_PENDING, REG_WAITLISTED, EVT_REVIEW_WAITLISTED
         )
         db.commit()
         return {
@@ -399,3 +484,101 @@ def list_registrations(
         "readonly": role == "admin",
         "students": students,
     }
+
+
+# ---------------------------------------------------------------
+# 我的报名状态变化（V3.0 新增，R3-01）
+# ---------------------------------------------------------------
+def _event_status_text(from_status: str | None, to_status: str, reason: str) -> str:
+    """
+    把事件的前后状态转成时间线上好读的文案。
+
+    to_status=removed 时状态本身没有展示意义（记录已删除），
+    要看原因才能分辨是"自己取消"还是"审核未通过"。
+    """
+    if to_status == STATUS_REMOVED:
+        return "报名未通过" if reason == EVT_REVIEW_REJECTED else "已取消报名"
+    return reg_status_text(to_status)
+
+
+@router.get("/my-registration-events", summary="我的报名状态变化")
+def my_registration_events(
+    user=Depends(get_current_user),
+    db: sqlite3.Connection = Depends(get_db),
+):
+    """
+    返回本人报名的全部状态变化事件（R3-01）。
+
+    - 学生：返回自己的事件，按时间正序，便于呈现"报名 → 候补 → 递补"的完整过程
+    - 其他角色：拒绝（教师看名单、管理员看账号，均不涉及此视图）
+
+    未读数只统计 needs_notice=1 的事件，即由教师或系统触发、并非本人操作的那些。
+    学生自己报名或取消不会产生提醒，否则提醒会被自己的动作淹掉。
+    """
+    if user["role"] != "student":
+        raise HTTPException(status_code=403, detail="仅学生可查看本人的报名状态变化")
+
+    seen_id_row = db.execute(
+        "SELECT events_seen_id FROM users WHERE id = ?", (user["id"],)
+    ).fetchone()
+    seen_id = seen_id_row["events_seen_id"] or 0
+
+    rows = db.execute(
+        "SELECT e.*, a.title AS activity_title "
+        "FROM registration_events e JOIN activities a ON a.id = e.activity_id "
+        "WHERE e.user_id = ? ORDER BY e.created_at, e.id",
+        (user["id"],),
+    ).fetchall()
+
+    events = []
+    unread = 0
+    last_seen_at = None
+    for r in rows:
+        # 未读判断用事件 id 做游标：时间只精确到秒，同一秒内的多条事件按时间比较会漏
+        is_new = bool(r["needs_notice"]) and r["id"] > seen_id
+        if is_new:
+            unread += 1
+        if r["id"] == seen_id:
+            last_seen_at = r["created_at"]
+        events.append({
+            "id": r["id"],
+            "activity_id": r["activity_id"],
+            "activity_title": r["activity_title"],
+            "from_status_text": reg_status_text(r["from_status"]) if r["from_status"] else "",
+            "to_status_text": _event_status_text(r["from_status"], r["to_status"], r["reason"]),
+            "reason_text": EVT_REASON_TEXT.get(r["reason"], r["reason"]),
+            "needs_notice": bool(r["needs_notice"]),
+            "is_new": is_new,
+            "created_at": r["created_at"],
+        })
+
+    return {
+        "events": events,
+        "unread_count": unread,
+        "last_seen_at": last_seen_at,
+    }
+
+
+@router.post("/my-registration-events/read", summary="标记状态变化已读")
+def mark_registration_events_read(
+    user=Depends(get_current_user),
+    db: sqlite3.Connection = Depends(get_db),
+):
+    """
+    把已读游标推进到当前最新事件，未读清零（R3-01）。
+
+    只推进到最新一条事件的 id，而不是直接写"现在"：
+    这样在标记已读与下一次轮询之间产生的事件不会被误吞。
+    """
+    if user["role"] != "student":
+        raise HTTPException(status_code=403, detail="仅学生可标记本人的报名状态变化")
+
+    latest = db.execute(
+        "SELECT MAX(id) AS m, MAX(created_at) AS t FROM registration_events WHERE user_id = ?",
+        (user["id"],),
+    ).fetchone()
+
+    seen_id = latest["m"] or 0
+    db.execute("UPDATE users SET events_seen_id = ? WHERE id = ?", (seen_id, user["id"]))
+    db.commit()
+    return {"message": "已标记为已读", "last_seen_at": latest["t"], "unread_count": 0}

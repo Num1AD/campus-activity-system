@@ -3,9 +3,9 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>校园活动管理系统 V2.0</title>
+  <title>校园活动管理系统 V3.0</title>
   <!-- 样式表 -->
-  <link rel="stylesheet" href="style.css?v=20260922d">
+  <link rel="stylesheet" href="style.css?v=20261017">
 </head>
 <body>
   <!-- Vue 应用挂载点 -->
@@ -22,6 +22,8 @@
           <button v-if="user && user.role !== 'admin'" class="nav-btn"
                   :class="{active: view==='mine'}" @click="switchView('mine')">
             {{ user.role === 'teacher' ? '我的活动(管理)' : '我的活动' }}
+            <!-- V3.0：报名状态有新变化时的未读徽标（R3-01） -->
+            <span v-if="unreadCount" class="nav-badge" :title="unreadCount + ' 条报名状态变化未读'">{{ unreadCount }}</span>
           </button>
           <!-- 管理员：账号管理（平台侧职责，不参与活动业务） -->
           <button v-if="user && user.role === 'admin'" class="nav-btn"
@@ -127,6 +129,24 @@
               <!-- 教师视角：候补与待审核人数（US-03 区分正式与候补） -->
               <span v-if="user.role==='teacher' && act.waitlisted" class="meta-wait">候补 {{ act.waitlisted }}</span>
               <span v-if="user.role==='teacher' && act.pending_review" class="meta-pending">待审核 {{ act.pending_review }}</span>
+            </div>
+            <!-- V3.0（R3-01）：候补位置 —— 让"还要等多久"至少知道前面有几个人 -->
+            <p v-if="user.role==='student' && act.queue_position" class="queue-hint">
+              当前排队第 {{ act.queue_position }} 位，共 {{ act.waitlist_total }} 人候补
+            </p>
+            <!-- V3.0（R3-01）：状态变化时间线 —— 何时提交、何时进候补、何时被递补 -->
+            <div v-if="user.role==='student' && eventsByActivity[act.id]" class="timeline-wrap">
+              <button class="timeline-toggle" @click="toggleTimeline(act.id)">
+                {{ timelineOpen[act.id] ? '收起状态变化' : '查看状态变化' }}
+                <span v-if="eventsByActivity[act.id].some(e => e.is_new)" class="new-dot">新</span>
+              </button>
+              <ol v-if="timelineOpen[act.id]" class="timeline">
+                <li v-for="e in eventsByActivity[act.id]" :key="e.id" :class="{ 'is-new': e.is_new }">
+                  <span class="tl-time">{{ e.created_at.slice(5, 16) }}</span>
+                  <span class="tl-text">{{ e.reason_text }}</span>
+                  <span class="tl-status">{{ e.to_status_text }}</span>
+                </li>
+              </ol>
             </div>
             <div class="act-foot">
               <!-- 学生：本人报名状态 + 撤回申请 / 退出候补 / 取消报名 -->
@@ -336,12 +356,12 @@
       </div>
     </div>
 
-    <footer class="footer">校园活动管理系统 V2.0 · 软件工程实验二</footer>
+    <footer class="footer">校园活动管理系统 V3.0 · 软件工程实验三</footer>
   </div>
 
   <!-- Vue 3（本地 vendor，避免 CDN 网络依赖） -->
   <script src="vendor/vue.global.prod.js"></script>
   <!-- 应用逻辑 -->
-  <script src="app.js?v=20260922d"></script>
+  <script src="app.js?v=20261017"></script>
 </body>
 </html>

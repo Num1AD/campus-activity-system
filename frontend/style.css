@@ -1,7 +1,8 @@
 /*
- * style.css —— 校园活动管理系统 V2.0 前端样式
+ * style.css —— 校园活动管理系统 V3.0 前端样式
  * 简洁卡片风格，状态用颜色区分（绿=报名中、灰=已截止、红=已取消）
  * V2.0 新增：报名状态标签（待审核 / 正式参加 / 候补中）、需审核标记、账号管理表格
+ * V3.0 新增：未读徽标、候补排队提示、状态变化时间线
  */
 
 /* ---------- 基础 ---------- */
@@ -217,3 +218,46 @@ body {
 .admin-table { background: #fff; border-radius: 12px; overflow: hidden; box-shadow: 0 1px 4px rgba(0,0,0,.06); }
 .admin-table .row-disabled td { opacity: .55; }
 .admin-table .role-badge { font-style: normal; }
+
+/* ---------- V3.0：报名状态变化（R3-01）与提交防重复（R3-02） ---------- */
+/* 未读徽标：挂在我的活动导航按钮上，有未读才出现 */
+.nav-badge {
+  display: inline-block; min-width: 18px; height: 18px; line-height: 18px;
+  padding: 0 5px; margin-left: 6px; border-radius: 9px;
+  background: #dc2626; color: #fff; font-size: 12px; text-align: center;
+  vertical-align: middle;
+}
+
+/* 候补排队位置：放在时间信息之后，单独一行，用蓝色底与普通文字区分 */
+.queue-hint {
+  font-size: 13px; color: #1d4ed8; background: #eff6ff;
+  border-radius: 6px; padding: 6px 10px;
+}
+
+/* 状态变化时间线：默认收起，点开后按时间正序列出每一步 */
+.timeline-wrap { margin-top: 4px; }
+.timeline-toggle {
+  background: none; border: none; padding: 0; cursor: pointer;
+  font-size: 13px; color: #1d4ed8;
+}
+.timeline-toggle:hover { text-decoration: underline; }
+.new-dot {
+  display: inline-block; margin-left: 6px; padding: 0 6px;
+  border-radius: 8px; background: #dc2626; color: #fff; font-size: 11px;
+}
+.timeline {
+  list-style: none; margin: 8px 0 0; padding: 8px 10px;
+  background: #f9fafb; border-radius: 6px; font-size: 13px;
+}
+.timeline li {
+  display: flex; gap: 10px; align-items: baseline;
+  padding: 4px 0 4px 10px; border-left: 2px solid #e5e7eb; color: #4b5563;
+}
+/* 未读的那一步用红色竖线标出，看完就不显眼 */
+.timeline li.is-new { border-left-color: #dc2626; color: #1f2937; }
+.tl-time { color: #9ca3af; font-size: 12px; white-space: nowrap; }
+.tl-text { flex: 1; }
+.tl-status {
+  font-size: 12px; padding: 1px 8px; border-radius: 8px;
+  background: #e5e7eb; color: #4b5563; white-space: nowrap;
+}

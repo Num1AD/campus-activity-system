@@ -177,9 +177,16 @@ def main():
     check("TEST-14", "REQ-06", "学生报名活动", "报名成功",
           r.json(), r.status_code == 200)
 
+    # V3.0（R3-02）：重复报名改为 409 Conflict，响应体带当前状态。
+    # 语义上"已报过"不是请求出错，而是与当前资源状态冲突；前端据此提示
+    # "你已报名，当前状态：正式参加"，而不是弹一个看不懂的错误。
     r = post(f"/api/activities/{new_id}/register", None, stu1_tk)
-    check("TEST-15", "REQ-08", "同一学生重复报名", "返回 400 拒绝",
-          r.json(), r.status_code == 400)
+    body = r.json()
+    detail = body.get("detail") or {}
+    check("TEST-15", "REQ-08", "同一学生重复报名",
+          "返回 409 且带当前状态（V3.0 改为幂等提示）",
+          body, r.status_code == 409 and isinstance(detail, dict)
+          and detail.get("current_status") == "正式参加")
 
     r = requests.delete(f"{BASE}/api/activities/{new_id}/register",
                         headers={"Authorization": f"Bearer {stu1_tk}"}, timeout=5)

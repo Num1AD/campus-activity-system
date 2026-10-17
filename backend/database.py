@@ -32,6 +32,9 @@ CREATE TABLE IF NOT EXISTS users (
     role          TEXT    NOT NULL CHECK (role IN ('student', 'teacher', 'admin')),
     -- V2.0：账号是否可用，管理员停用异常账号时置 0（对应 R-08）
     is_active     INTEGER NOT NULL DEFAULT 1,
+    -- V3.0：本人已读到的状态变化事件 id（对应 R3-01）。用事件 id 而不是时间做游标：
+    -- 时间只精确到秒，同一秒内产生的事件按时间比较会被漏掉；id 严格递增，没有并列。
+    events_seen_id INTEGER,
     created_at    TEXT    NOT NULL DEFAULT (datetime('now', 'localtime'))
 );
 
@@ -74,6 +77,23 @@ CREATE INDEX IF NOT EXISTS idx_reg_activity ON registrations(activity_id);
 CREATE INDEX IF NOT EXISTS idx_reg_user     ON registrations(user_id);
 CREATE INDEX IF NOT EXISTS idx_reg_status   ON registrations(activity_id, status);
 CREATE INDEX IF NOT EXISTS idx_act_creator  ON activities(creator_id);
+
+-- V3.0 报名状态变更事件：记录报名的每一次状态变化（对应 R3-01）
+-- 为什么不设指向 registrations 的外键：取消报名与审核拒绝都会删除报名记录，
+-- 外键会导致历史事件断裂，而这份历史正是本轮要呈现给用户的内容。
+CREATE TABLE IF NOT EXISTS registration_events (
+    id           INTEGER PRIMARY KEY AUTOINCREMENT,
+    activity_id  INTEGER NOT NULL,
+    user_id      INTEGER NOT NULL,
+    from_status  TEXT,                                  -- NULL 表示首次提交
+    to_status    TEXT    NOT NULL,                      -- pending/confirmed/waitlisted/removed
+    reason       TEXT    NOT NULL,                      -- apply/review_*/withdraw/promoted
+    -- 1=由教师或系统触发，需要提醒学生；学生自己报名/取消不提醒
+    needs_notice INTEGER NOT NULL DEFAULT 0,
+    created_at   TEXT    NOT NULL
+);
+CREATE INDEX IF NOT EXISTS idx_evt_user     ON registration_events(user_id, created_at);
+CREATE INDEX IF NOT EXISTS idx_evt_activity ON registration_events(activity_id);
 """
 
 
@@ -177,6 +197,22 @@ def _seed(conn: sqlite3.Connection) -> None:
             (act_ids[title], user_ids[username], status,
              queued_at if status == "waitlisted" else None),
         )
+
+    # V3.0：为演示报名补写状态变更事件，使「状态变化」时间线一打开就有内容（R3-01）
+    # 这些都是学生自己提交的动作，needs_notice=0，不计入未读
+    seen_at = now.strftime("%Y-%m-%d %H:%M:%S")
+    for title, username, status in DEMO_REGISTRATIONS:
+        conn.execute(
+            "INSERT INTO registration_events "
+            "(activity_id, user_id, from_status, to_status, reason, needs_notice, created_at) "
+            "VALUES (?, ?, NULL, ?, 'apply', 0, ?)",
+            (act_ids[title], user_ids[username], status, seen_at),
+        )
+    # 种子数据视为已读，避免首次登录就显示一堆历史未读
+    last_id = conn.execute("SELECT MAX(id) AS m FROM registration_events").fetchone()["m"]
+    conn.execute(
+        "UPDATE users SET events_seen_id = ? WHERE role = 'student'", (last_id,)
+    )
 
 
 def _refresh_demo_activities(conn: sqlite3.Connection) -> list:

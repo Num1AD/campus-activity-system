@@ -7,12 +7,20 @@
  * 3. 活动广场：浏览活动、报名 / 取消报名
  * 4. 我的活动：学生查看报名状态（含候补与待审核）；教师发布 / 编辑 / 取消活动、审核报名、查看名单
  * 5. 账号管理：系统管理员查看账号与停用/恢复（V2.0 新增）
+ * 6. 报名状态变化：未读徽标、状态时间线与候补排队位置（V3.0 新增）
  *
  * V2.0 变化（对应报告第六章 US-01~US-08）：
  * - 学生报名状态分「待审核 / 正式参加 / 候补中」三种，按钮文案随之变化
  * - 满员活动报名按钮提示「进入候补」，不再是简单的"不可报名"
  * - 教师发布/编辑活动时可设置是否需要审核与参加资格
  * - 教师报名名单按状态分组，待审核的报名可直接通过或拒绝
+ *
+ * V3.0 变化（由模拟运行数据驱动，对应 R3-01 / R3-02）：
+ * - 顶部「我的活动」显示未读徽标，状态变化由教师或系统触发时才计数
+ * - 我的活动卡片可展开状态时间线：提交报名 → 进入候补 → 审核结果 → 递补
+ * - 候补卡片显示"当前排队第 N 位，共 M 人候补"
+ * - 报名请求在途期间按钮禁用并显示「处理中…」，避免双击重复提交
+ * - 重复提交返回 409 时，提示"你已报名，当前状态：X"而不是报错
  *
  * 认证方案（与后端一致）：登录返回 token，存入 localStorage（键 cas_token）；
  * 退出登录会先调用 /api/logout 让服务端注销该 token，再清除本地记录。
@@ -41,7 +49,16 @@ async function api(path, options = {}) {
 
   // 非 2xx 时抛出后端返回的错误信息，由调用方提示用户
   if (!resp.ok) {
-    throw new Error(data.detail || `请求失败（${resp.status}）`);
+    // V3.0：后端某些错误（如重复报名 409）返回结构化 detail，
+    // 调用方需要 status 与原始 detail 才能给出针对性提示，因此一并挂到错误对象上
+    const detail = data.detail;
+    const msg = (detail && typeof detail === 'object')
+      ? (detail.message || `请求失败（${resp.status}）`)
+      : (detail || `请求失败（${resp.status}）`);
+    const err = new Error(msg);
+    err.status = resp.status;
+    err.detail = detail;
+    throw err;
   }
   return data;
 }
@@ -57,6 +74,12 @@ const app = createApp({
       activities: [],            // 活动广场列表
       mineActivities: [],        // 我的活动列表
       myRegMap: {},              // 我的报名状态映射 {活动id: {code, text, queued_at}}（学生）
+      // V3.0（R3-02）：按活动 id 记录在途请求，请求期间按钮禁用，避免双击重复提交
+      regBusy: {},
+      // V3.0（R3-01）：报名状态变化事件与未读数
+      regEvents: [],
+      unreadCount: 0,
+      timelineOpen: {},          // 时间线展开状态 {活动id: true}
       // 登录/注册弹层
       authModal: { show: false, mode: 'login' },
       authForm: { name: '', username: '', password: '', role: 'student' },
@@ -87,6 +110,8 @@ const app = createApp({
     // 页面加载：尝试恢复登录态，并拉取活动列表
     await this.restoreSession();
     await this.loadActivities();
+    // V3.0：恢复登录态后拉一次状态变化，顶部徽标才能在进入页面前就显示
+    await this.loadEvents();
   },
 
   computed: {
@@ -99,6 +124,14 @@ const app = createApp({
     },
     waitlistedList() {
       return this.studentList.filter((s) => s.reg_status === 'waitlisted');
+    },
+    /* V3.0：把状态变化事件按活动分组，供"我的活动"卡片内的时间线使用 */
+    eventsByActivity() {
+      const map = {};
+      for (const e of this.regEvents) {
+        (map[e.activity_id] = map[e.activity_id] || []).push(e);
+      }
+      return map;
     },
   },
 
@@ -119,7 +152,14 @@ const app = createApp({
           this.view = 'list';
           return;
         }
-        if (v === 'mine') await this.loadMine();
+        if (v === 'mine') {
+          await this.loadMine();
+          // V3.0：进入"我的活动"时拉取状态变化，并把已看到的标记为已读
+          if (this.user.role === 'student') {
+            await this.loadEvents();
+            await this.markEventsRead();
+          }
+        }
         if (v === 'admin') await this.loadAdminUsers();
       }
     },
@@ -165,6 +205,7 @@ const app = createApp({
         this.authModal.show = false;
         alert('登录成功，欢迎 ' + data.user.name);
         await this.loadActivities();
+        await this.loadEvents();
       } catch (e) {
         // 任何失败都明确提示（如服务器未启动、用户名密码错误）
         alert(e.message || '操作失败，请稍后重试');
@@ -181,6 +222,10 @@ const app = createApp({
       localStorage.removeItem('cas_token');
       this.user = null;
       this.view = 'list';
+      // V3.0：退出后清空状态变化，避免下一个人登录时短暂看到上一个人的未读
+      this.regEvents = [];
+      this.unreadCount = 0;
+      this.timelineOpen = {};
     },
 
     /* ---------- 活动数据 ---------- */
@@ -215,6 +260,42 @@ const app = createApp({
       this.myRegMap = map;
     },
 
+    /* ---------- V3.0：报名状态变化（R3-01） ---------- */
+    async loadEvents() {
+      // 拉取本人的状态变化事件与未读数；教师与管理员没有这个视图，直接清空
+      if (!this.user || this.user.role !== 'student') {
+        this.regEvents = [];
+        this.unreadCount = 0;
+        return;
+      }
+      try {
+        const data = await api('/api/my-registration-events');
+        // 后端按时间正序返回，正好是时间线要的"从提交到递补"的先后顺序
+        this.regEvents = data.events || [];
+        this.unreadCount = data.unread_count || 0;
+      } catch {
+        // 未登录或网络异常时静默：徽标不显示即可，不打断主流程
+        this.regEvents = [];
+        this.unreadCount = 0;
+      }
+    },
+
+    async markEventsRead() {
+      // 已看过就清零；保留本次拿到的 is_new 标记，让用户仍能看出哪些是新的
+      if (!this.user || this.user.role !== 'student' || !this.unreadCount) return;
+      try {
+        await api('/api/my-registration-events/read', { method: 'POST' });
+        this.unreadCount = 0;
+      } catch {
+        // 失败不影响浏览，下次进入会再试
+      }
+    },
+
+    toggleTimeline(actId) {
+      // 展开/收起某活动的状态时间线
+      this.timelineOpen = { ...this.timelineOpen, [actId]: !this.timelineOpen[actId] };
+    },
+
     /* ---------- 活动广场：报名/取消 ---------- */
     myReg(act) {
       // 当前用户对该活动的报名状态（null = 未报名）
@@ -224,6 +305,7 @@ const app = createApp({
 
     regBtnText(act) {
       // 报名按钮文案：按本人报名状态与活动名额情况区分
+      if (this.regBusy[act.id]) return '处理中…';   // V3.0：在途期间给出明确反馈
       if (!this.user) return '登录后报名';
       if (this.user.role !== 'student') return '不可报名';
       const reg = this.myReg(act);
@@ -239,10 +321,24 @@ const app = createApp({
     },
 
     regBtnDisabled(act) {
+      // V3.0（R3-02）：请求在途期间禁用按钮，从源头避免双击发出两次请求
+      if (this.regBusy[act.id]) return true;
       // 已报名的记录随时可撤回/退出/取消；未报名时仅"报名中"且未截止可操作
       if (!this.user || this.user.role !== 'student') return true;
       if (this.myReg(act)) return false;
       return act.status !== '报名中';
+    },
+
+    registerSuccessText(r) {
+      // V3.0（R3-02）：把"成功"讲清楚，并告诉用户去哪里确认状态变化
+      const pos = r.queue_position ? `（当前第 ${r.queue_position} 位）` : '';
+      if (r.reg_status === '候补中') {
+        return `名额已满，已进入候补队列${pos}。\n可在「我的活动」查看排队位置与状态变化提醒。`;
+      }
+      if (r.reg_status === '待审核') {
+        return '报名已提交，等待组织教师审核。\n审核结果可在「我的活动」查看。';
+      }
+      return '报名成功。\n可在「我的活动」查看状态变化。';
     },
 
     async handleRegister(act) {
@@ -254,7 +350,10 @@ const app = createApp({
       }
       // 学生可报名/取消；其他角色点报名按钮无意义，直接忽略
       if (this.user.role !== 'student') return;
+      // 双保险：按钮已禁用，这里再挡一次，避免界面状态未及时刷新时重发
+      if (this.regBusy[act.id]) return;
 
+      this.regBusy = { ...this.regBusy, [act.id]: true };
       const reg = this.myReg(act);
       try {
         if (reg) {
@@ -262,24 +361,44 @@ const app = createApp({
           alert({ pending: '已撤回报名申请', waitlisted: '已退出候补' }[reg.code] || '已取消报名');
         } else {
           const r = await api(`/api/activities/${act.id}/register`, { method: 'POST' });
-          // 后端返回真实结果：报名成功 / 进入候补 / 等待审核
-          alert(r.message || '报名成功');
+          alert(this.registerSuccessText(r));
         }
         await this.loadActivities();
+        await this.loadEvents();
       } catch (e) {
-        alert(e.message);
+        if (e.status === 409) {
+          // 已报过不是错误：明确告知当前状态，并刷新为可取消，而不是让用户再猜一次
+          const cur = (e.detail && e.detail.current_status) || '';
+          alert(`你已报名该活动${cur ? '，当前状态：' + cur : ''}。\n无需重复提交，可在「我的活动」查看状态变化。`);
+          await this.loadActivities();
+          await this.loadEvents();
+        } else {
+          alert(e.message + '\n\n可稍后重试；若反复失败，请把这条提示告知任课教师。');
+        }
+      } finally {
+        const next = { ...this.regBusy };
+        delete next[act.id];
+        this.regBusy = next;
       }
     },
 
     async unregister(act) {
+      // V3.0（R3-02）：与报名同一套在途保护，"我的活动"里的取消按钮同样不能被连点
+      if (this.regBusy[act.id]) return;
+      this.regBusy = { ...this.regBusy, [act.id]: true };
       const reg = this.myReg(act);
       try {
         await api(`/api/activities/${act.id}/register`, { method: 'DELETE' });
         alert({ pending: '已撤回报名申请', waitlisted: '已退出候补' }[reg && reg.code] || '已取消报名');
         await this.loadMine();
         await this.loadActivities();
+        await this.loadEvents();
       } catch (e) {
         alert(e.message);
+      } finally {
+        const next = { ...this.regBusy };
+        delete next[act.id];
+        this.regBusy = next;
       }
     },
 

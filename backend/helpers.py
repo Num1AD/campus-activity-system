@@ -25,12 +25,87 @@ REG_STATUS_TEXT = {
     REG_WAITLISTED: "候补中",
 }
 
+# ---------------------------------------------------------------
+# V3.0：报名状态变更事件（对应 R3-01）
+# 事件只写不改，用于向学生呈现"什么时候变成什么样"，不参与任何名额判定
+# ---------------------------------------------------------------
+# 仅用于事件记录：报名记录已被删除（取消 / 撤回 / 审核拒绝）
+STATUS_REMOVED = "removed"
+
+EVT_APPLY              = "apply"                # 学生提交报名
+EVT_REVIEW_APPROVED    = "review_approved"      # 教师审核通过且有名额
+EVT_REVIEW_WAITLISTED  = "review_waitlisted"    # 教师审核通过但名额已满
+EVT_REVIEW_REJECTED    = "review_rejected"      # 教师审核拒绝
+EVT_WITHDRAW           = "withdraw"             # 学生取消 / 撤回 / 退出候补
+EVT_PROMOTED           = "promoted"             # 取消引发递补，候补转正式
+
+# 原因的中文说明，直接用于时间线展示
+EVT_REASON_TEXT = {
+    EVT_APPLY:             "提交报名",
+    EVT_REVIEW_APPROVED:   "教师审核通过，确定为正式参加",
+    EVT_REVIEW_WAITLISTED: "教师审核通过，名额已满转入候补",
+    EVT_REVIEW_REJECTED:   "教师审核未通过",
+    EVT_WITHDRAW:          "本人取消或撤回",
+    EVT_PROMOTED:          "名额空出，自动递补为正式参加",
+}
+
+# 需要提醒学生的事件：由教师或系统触发，不是本人操作
+# 学生自己报名/取消不需要被提醒，这正是数据里"候补转成功没人知道"的痛点所在
+EVT_NOTICE_REASONS = {
+    EVT_REVIEW_APPROVED,
+    EVT_REVIEW_WAITLISTED,
+    EVT_REVIEW_REJECTED,
+    EVT_PROMOTED,
+}
+
 FMT = "%Y-%m-%d %H:%M"
+
+# 事件时间精确到秒：未读判断按"晚于已读时间点"比较，
+# 若只精确到分钟，同一分钟内产生的多条事件会互相吞掉
+FMT_SEC = "%Y-%m-%d %H:%M:%S"
 
 
 def now_str() -> str:
     """当前时间字符串，与活动时间字段格式一致。"""
     return datetime.now().strftime(FMT)
+
+
+def now_str_sec() -> str:
+    """当前时间（精确到秒），用于状态变更事件的记录与未读比较。"""
+    return datetime.now().strftime(FMT_SEC)
+
+
+def record_registration_event(
+    db: sqlite3.Connection,
+    activity_id: int,
+    user_id: int,
+    from_status: str | None,
+    to_status: str,
+    reason: str,
+) -> None:
+    """
+    写入一条报名状态变更事件（R3-01）。
+
+    调用方必须处在与报名表改动同一个事务内：报名成功却没有事件，
+    用户就会看到"状态变了但没记录"的断层。
+
+    from_status 传 None 表示首次提交；to_status 传 STATUS_REMOVED 表示记录已删除。
+    needs_notice 由 reason 推导，学生本人的动作不提醒，教师与系统的动作提醒。
+    """
+    db.execute(
+        "INSERT INTO registration_events "
+        "(activity_id, user_id, from_status, to_status, reason, needs_notice, created_at) "
+        "VALUES (?, ?, ?, ?, ?, ?, ?)",
+        (
+            activity_id,
+            user_id,
+            from_status,
+            to_status,
+            reason,
+            1 if reason in EVT_NOTICE_REASONS else 0,
+            now_str_sec(),
+        ),
+    )
 
 
 def calc_status(start_time: str, is_cancelled: int) -> str:
