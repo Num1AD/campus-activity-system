@@ -302,8 +302,15 @@ const app = createApp({
       // 已看过就清零；保留本次拿到的 is_new 标记，让用户仍能看出哪些是新的
       if (!this.user || this.user.role !== 'student' || !this.unreadCount) return;
       try {
-        await api('/api/my-registration-events/read', { method: 'POST' });
-        this.unreadCount = 0;
+        // 带上本次已加载到的最大事件 id：只把"确实看到的"标成已读。
+        // 若加载之后又有新事件（教师恰在此刻审核），它不会被这次标记吞掉，
+        // 服务端会把它算作未读返回，徽标继续显示。
+        const maxId = this.regEvents.reduce((m, e) => Math.max(m, e.id), 0);
+        const r = await api('/api/my-registration-events/read', {
+          method: 'POST',
+          body: JSON.stringify({ until: maxId }),
+        });
+        this.unreadCount = r.unread_count || 0;
       } catch {
         // 失败不影响浏览，下次进入会再试
       }

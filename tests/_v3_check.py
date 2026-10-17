@@ -223,6 +223,47 @@ def main():
     # 该活动需审核，而且前面已审核通过，因此当前状态是"正式参加"
     chk("响应体含当前状态", detail.get("current_status") == "正式参加", str(detail)[:120])
 
+    # ---------------- G. 已读游标的竞态防护 ----------------
+    print()
+    print("【G】已读游标不被加载之后的新事件吞掉")
+    aid8 = mk_activity(tk_t, "已读竞态", capacity=3, require_review=True, day=27)
+    requests.post(BASE + f"/api/activities/{aid8}/register", headers=H(tk_s1), timeout=5)
+    # 学生「加载」事件：此时只到 apply 这一条
+    ev_before = requests.get(BASE + "/api/my-registration-events", headers=H(tk_s1),
+                             timeout=5).json()["events"]
+    loaded_max = max([e["id"] for e in ev_before if e["activity_id"] == aid8] or [0])
+    chk("加载时拿到 apply 事件的 id", loaded_max > 0, "max_id=%d" % loaded_max)
+
+    # 加载之后，教师才完成审核（新事件 id 一定大于 loaded_max）
+    r = requests.get(BASE + f"/api/activities/{aid8}/registrations", headers=H(tk_t), timeout=5)
+    sid8 = [s for s in r.json()["students"] if s["reg_status"] == "pending"][0]["id"]
+    requests.post(BASE + f"/api/activities/{aid8}/registrations/{sid8}/review",
+                  headers=H(tk_t), json={"approve": True}, timeout=5)
+
+    # 带 until 标记已读：应只推进到 loaded_max，审核事件仍算未读
+    r = requests.post(BASE + "/api/my-registration-events/read", headers=H(tk_s1),
+                      json={"until": loaded_max}, timeout=5)
+    chk("带 until 标记已读成功", r.status_code == 200, r.text[:100])
+    chk("加载之后产生的审核事件仍算未读", r.json()["unread_count"] == 1,
+        "unread=%d" % r.json()["unread_count"])
+    ev_after = requests.get(BASE + "/api/my-registration-events", headers=H(tk_s1),
+                            timeout=5).json()
+    still_new = [e for e in ev_after["events"]
+                 if e["activity_id"] == aid8 and e.get("is_new")]
+    chk("该事件仍标记为新", len(still_new) == 1,
+        str([e["reason_text"] for e in still_new]))
+
+    # 不带 until 时（兼容旧调用）推进到最新，未读清零
+    r = requests.post(BASE + "/api/my-registration-events/read", headers=H(tk_s1), timeout=5)
+    chk("不带 until 时推进到最新并清零", r.json()["unread_count"] == 0,
+        "unread=%d" % r.json()["unread_count"])
+
+    # 游标只前进不后退：用更小的 until 再调一次，不应把已读退回去
+    r = requests.post(BASE + "/api/my-registration-events/read", headers=H(tk_s1),
+                      json={"until": 1}, timeout=5)
+    chk("游标不回退（传更小 until 不产生未读）", r.json()["unread_count"] == 0,
+        "unread=%d" % r.json()["unread_count"])
+
     # ---------------- F. 角色边界 ----------------
     print()
     print("【F】角色边界")
@@ -234,7 +275,7 @@ def main():
     chk("教师标记已读 403", r.status_code == 403, "实际 %d" % r.status_code)
 
     # 清理
-    for aid in [aid1, aid2, aid3, aid4, aid5, aid6, aid7]:
+    for aid in [aid1, aid2, aid3, aid4, aid5, aid6, aid7, aid8]:
         requests.post(BASE + f"/api/activities/{aid}/cancel", headers=H(tk_t), timeout=5)
 
     print()

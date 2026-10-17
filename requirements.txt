@@ -1,4 +1,14 @@
-# 校园活动管理系统 V2.0 后端依赖
+# 校园活动管理系统 V3.0 —— 依赖清单
 # 技术栈：FastAPI + SQLite（详见 docs/03-决策记录.md）
+# 实测版本：fastapi 0.141 / uvicorn 0.52 / pydantic 2.13 / requests 2.34
+
 fastapi
 uvicorn
+
+# 验证脚本依赖：tests/ 下的接口与流程测试用 requests 发请求
+requests
+
+# 前端实测（tests/_verify_frontend_v3.py 等）另需 playwright，它要额外下载浏览器驱动、
+# 体积较大，因此不列入本文件；需要时执行：
+#   pip install playwright
+#   playwright install msedge

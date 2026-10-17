@@ -71,6 +71,7 @@ INTERFACE_ONLY = {
     "current_status",   # V3.0：重复报名的 409 响应字段
     "unread_count",     # V3.0：未读条数（现算）
     "last_seen_at",     # V3.0：已读时间（由游标反查）
+    "until",            # V3.0：标记已读接口的可选请求参数，不是表字段
 }
 KEEP_AS_IS = {"confirmed", "pending", "waitlisted", "student", "teacher", "admin"}
 # 事件原因代码：不是表字段，而是写入 registration_events.reason 的枚举值，

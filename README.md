@@ -97,7 +97,14 @@ python tests/test_api.py
 | `_v2_waitlist_check.py` | 候补链路（进队、排序、递补、退出前移） |
 | `_v2_review_admin_check.py` | 审核与管理员权限边界 |
 | `_v3_check.py` | 状态变化事件、未读数与已读游标、排队位置、重复提交 409 |
+| `_e2e_v3.py` | 端到端全流程（认证 / 学生 / 教师 / 管理员 / 越权），并监控控制台报错与 5xx |
+| `_edge_v3.py` | 边界场景（超长文本、编辑、取消、审核拒绝、容量调整、跨活动状态隔离） |
+| `_layout_v3.py` | 桌面分辨率布局检查（6 种分辨率 × 5 个视图） |
 | `_verify_frontend_v3.py` | 前端实测：未读徽标、时间线、排队位置、提交在途禁用 |
+| `_verify_report_v3.py` | 实验三报告核验（结构、表格、图、数据一致性、字体） |
+
+接口与流程脚本只需 `requests`（已列入 requirements.txt）；带 `_verify_frontend_*` 与 `_layout_*`
+的脚本另需 `playwright`，按 requirements.txt 注释里的命令单独安装。
 
 ## 已知说明
 

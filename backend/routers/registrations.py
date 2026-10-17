@@ -559,26 +559,65 @@ def my_registration_events(
     }
 
 
+class MarkReadRequest(BaseModel):
+    """
+    标记已读请求体（可选）。
+
+    until = 客户端本次实际加载到的最大事件 id。带上它可以避免一个竞态：
+    前端先 GET 事件列表、再 POST 标记已读；若两步之间恰好有教师完成审核，
+    后端按 MAX(id) 推进会把那条用户还没看到的事件一并标成已读，提醒就丢了。
+    """
+    until: int | None = Field(default=None, description="客户端已加载到的最大事件 id")
+
+
 @router.post("/my-registration-events/read", summary="标记状态变化已读")
 def mark_registration_events_read(
+    req: MarkReadRequest | None = None,
     user=Depends(get_current_user),
     db: sqlite3.Connection = Depends(get_db),
 ):
     """
-    把已读游标推进到当前最新事件，未读清零（R3-01）。
+    推进已读游标（R3-01）。
 
-    只推进到最新一条事件的 id，而不是直接写"现在"：
-    这样在标记已读与下一次轮询之间产生的事件不会被误吞。
+    游标只前进不后退，且推进上限由 until 限定：
+    - 带 until：只推进到客户端**已经看到**的那条事件，之后新产生的事件仍算未读；
+    - 不带 until：推进到当前最新事件（兼容旧调用与测试脚本）。
+
+    返回的 unread_count 是推进之后的真实未读数，而不是恒为 0 ——
+    若在客户端加载之后又来了新事件，这里会如实返回，前端据此又挂上徽标。
     """
     if user["role"] != "student":
         raise HTTPException(status_code=403, detail="仅学生可标记本人的报名状态变化")
 
     latest = db.execute(
-        "SELECT MAX(id) AS m, MAX(created_at) AS t FROM registration_events WHERE user_id = ?",
-        (user["id"],),
+        "SELECT MAX(id) AS m FROM registration_events WHERE user_id = ?", (user["id"],)
+    ).fetchone()["m"] or 0
+
+    target = latest
+    if req is not None and req.until is not None:
+        # 不允许越过客户端已见位置，防止把未看到的事件吞掉
+        target = min(latest, max(0, req.until))
+
+    seen = db.execute(
+        "SELECT events_seen_id FROM users WHERE id = ?", (user["id"],)
+    ).fetchone()["events_seen_id"] or 0
+    new_seen = max(seen, target)          # 游标只前进不后退
+
+    db.execute("UPDATE users SET events_seen_id = ? WHERE id = ?", (new_seen, user["id"]))
+    db.commit()
+
+    unread = db.execute(
+        "SELECT COUNT(*) AS n FROM registration_events "
+        "WHERE user_id = ? AND needs_notice = 1 AND id > ?",
+        (user["id"], new_seen),
+    ).fetchone()["n"]
+    last = db.execute(
+        "SELECT created_at FROM registration_events WHERE user_id = ? AND id = ?",
+        (user["id"], new_seen),
     ).fetchone()
 
-    seen_id = latest["m"] or 0
-    db.execute("UPDATE users SET events_seen_id = ? WHERE id = ?", (seen_id, user["id"]))
-    db.commit()
-    return {"message": "已标记为已读", "last_seen_at": latest["t"], "unread_count": 0}
+    return {
+        "message": "已标记为已读",
+        "last_seen_at": last["created_at"] if last else None,
+        "unread_count": unread,
+    }

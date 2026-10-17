@@ -1,9 +1,9 @@
 @echo off
-title Campus Activity System V2.0
+title Campus Activity System V3.0
 rem 切到脚本所在目录（用 %~dp0，不写死绝对路径，换机器/换目录也能用）
 cd /d "%~dp0"
 echo ============================================
-echo   校园活动管理系统 V2.0 正在启动...
+echo   校园活动管理系统 V3.0 正在启动...
 echo   浏览器请访问: http://127.0.0.1:8000
 echo   关闭本窗口即停止服务
 echo ============================================
