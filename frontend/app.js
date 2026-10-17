@@ -306,7 +306,8 @@ const app = createApp({
     regBtnText(act) {
       // 报名按钮文案：按本人报名状态与活动名额情况区分
       if (this.regBusy[act.id]) return '处理中…';   // V3.0：在途期间给出明确反馈
-      if (!this.user) return '登录后报名';
+      // 未登录：活动可报名时提示登录，不可报名时直接说明，避免误导
+      if (!this.user) return act.status === '报名中' ? '登录后报名' : '不可报名';
       if (this.user.role !== 'student') return '不可报名';
       const reg = this.myReg(act);
       if (reg) {
@@ -323,8 +324,11 @@ const app = createApp({
     regBtnDisabled(act) {
       // V3.0（R3-02）：请求在途期间禁用按钮，从源头避免双击发出两次请求
       if (this.regBusy[act.id]) return true;
+      // 未登录时按钮必须可点：点击后由 handleRegister 弹出登录框。
+      // 除非活动本身不可报名，否则不该灰掉——文案写着"登录后报名"却点不动，是误导。
+      if (!this.user) return act.status !== '报名中';
       // 已报名的记录随时可撤回/退出/取消；未报名时仅"报名中"且未截止可操作
-      if (!this.user || this.user.role !== 'student') return true;
+      if (this.user.role !== 'student') return true;
       if (this.myReg(act)) return false;
       return act.status !== '报名中';
     },
