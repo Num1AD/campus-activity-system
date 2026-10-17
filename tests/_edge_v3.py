@@ -183,6 +183,19 @@ def main():
             and "撤回" not in c.locator("button").first.inner_text(),
             c.locator("button").first.inner_text())
 
+        # 被拒的记录已删除，卡片不再存在；必须在「已结束的报名」里能看到结果
+        page3.click("text=我的活动")
+        page3.wait_for_selector(".page", timeout=8000)
+        page3.wait_for_timeout(500)
+        panel = page3.locator(".ended-panel")
+        chk("我的活动出现「已结束的报名」区块", panel.count() == 1, "%d 个" % panel.count())
+        if panel.count():
+            ptxt = panel.first.inner_text()
+            chk("该区块说明被拒的活动与结果",
+                ("待拒绝" + RUN) in ptxt and "报名未通过" in ptxt,
+                ptxt.replace("\n", " | ")[:120])
+        page3.screenshot(path=os.path.join(OUT, "10_ended_panel.png"))
+
         print()
         print("【5】满员后上调容量")
         aid_cap = mk(tk_t, PREFIX + "容量调整" + RUN, 1, day=29)

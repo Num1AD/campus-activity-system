@@ -261,3 +261,17 @@ body {
   font-size: 12px; padding: 1px 8px; border-radius: 8px;
   background: #e5e7eb; color: #4b5563; white-space: nowrap;
 }
+
+/* V3.0：已结束的报名（记录已删除，事件仍在）—— 让被拒与取消都能被看到 */
+.ended-panel {
+  background: #fff; border-radius: 12px; padding: 14px 18px; margin-bottom: 16px;
+  box-shadow: 0 1px 4px rgba(0,0,0,.06);
+}
+.ended-title { font-size: 14px; color: #4b5563; margin-bottom: 8px; font-weight: 500; }
+.ended-list { list-style: none; font-size: 13px; color: #4b5563; }
+.ended-list li {
+  display: flex; gap: 10px; align-items: baseline; flex-wrap: wrap;
+  padding: 6px 0 6px 10px; border-left: 2px solid #e5e7eb;
+}
+.ended-name { color: #1f2937; }
+.ended-hint { margin-top: 8px; }

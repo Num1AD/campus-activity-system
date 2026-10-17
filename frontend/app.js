@@ -133,6 +133,24 @@ const app = createApp({
       }
       return map;
     },
+    /*
+     * V3.0：报名记录已不存在、但事件仍在的那些活动。
+     *
+     * 为什么需要：V2.0 的取舍是「审核拒绝即删除报名记录」，本人的取消也同样删除记录。
+     * "我的活动"是基于 registrations 联表查的，记录没了卡片就不在，于是被拒的学生
+     * 只会看到一个未读徽标，点进去却什么也看不到——提醒落空。
+     * 这里把这类活动按最近一次变化单独列出来，保证"被拒/已取消"都能被看见。
+     */
+    endedEvents() {
+      if (!this.user || this.user.role !== 'student') return [];
+      const alive = new Set(this.mineActivities.map((a) => a.id));
+      const latest = {};
+      for (const e of this.regEvents) {
+        if (alive.has(e.activity_id)) continue;
+        latest[e.activity_id] = e;   // 事件按时间正序，后写的即最新
+      }
+      return Object.values(latest).sort((a, b) => (a.created_at < b.created_at ? 1 : -1));
+    },
   },
 
   methods: {
